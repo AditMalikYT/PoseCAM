@@ -1,0 +1,40 @@
+# Flutter
+.flutter/
+flutter_*.json
+.packages
+.pub-cache/
+.pub/
+build/
+debug/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+*.log
+
+# Generated
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Runner/GeneratedPluginRegistrant.*
+
+# Android
+android/.gradle/
+android/captures/
+android/local.properties
+android/key.properties
+android/*.jks
+
+# Temporary files
+*.tmp
+*.temp
+*.orig
+
+# MediaPipe assets (optional, keep if needed)
+# assets/pose_landmarker_lite.task
