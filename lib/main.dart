@@ -18,7 +18,14 @@ class PoseCamApp extends StatelessWidget {
         primaryColor: const Color(0xFF00E5FF),
         colorScheme: const ColorScheme.dark(
           primary: Color(0xFF00E5FF),
-          secondary: Color(0xFF00E5FF),
+          secondary: Color(0xFF00B8D4),
+          surface: Colors.black,
+        ),
+        textTheme: const TextTheme(
+          labelLarge: TextStyle(
+            letterSpacing: 1.5,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       home: const CameraScreen(),

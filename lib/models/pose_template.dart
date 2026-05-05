@@ -1,5 +1,19 @@
 import '../utils/angle_utils.dart' as au;
 
+class PoseTemplate {
+  final String displayName;
+  final Map<String, double> targetAngles;
+  final Map<int, au.LandmarkPoint>? ghostLandmarks;
+  final double tolerance;
+
+  const PoseTemplate({
+    required this.displayName,
+    required this.targetAngles,
+    this.ghostLandmarks,
+    this.tolerance = 8.0, // degrees
+  });
+}
+
 enum ProximityState {
   red,
   yellow,

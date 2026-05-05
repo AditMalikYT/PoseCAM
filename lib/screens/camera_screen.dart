@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import '../widgets/pose_overlay.dart';
@@ -24,6 +25,7 @@ class _CameraScreenState extends State<CameraScreen> {
   Future<void>? _initializeControllerFuture;
   bool _isFlashOn = false;
   bool _isAiPoseMode = true;
+  bool _showPoseGuides = true;
   int _selectedModeIndex = 2; // 0: Photo, 1: Portrait, 2: AI POSE, 3: Video
 
   CameraMode get _selectedMode {
@@ -84,7 +86,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
     if (kIsWeb) return; // Pose detection not supported on web
     _controller.startImageStream((CameraImage image) async {
-      if (_isDetecting) return;
+      if (_isDetecting || !mounted) return;
       _isDetecting = true;
 
       try {
@@ -93,8 +95,18 @@ class _CameraScreenState extends State<CameraScreen> {
 
         final result = await _poseDetectorService.processImage(inputImage);
 
-        if (result != null && mounted) {
+        if (!mounted) return;
+
+        if (result != null) {
           final jointStates = _poseMatchingEngine.evaluate(result.jointAngles);
+
+          // Check for new matches to trigger haptic feedback
+          jointStates.forEach((joint, state) {
+            if (state == ProximityState.cyan && _latestJointStates[joint] != ProximityState.cyan) {
+              HapticFeedback.lightImpact();
+            }
+          });
+
           final symmetryScore = _poseMatchingEngine.calculateSymmetryScore(result.jointAngles);
 
           setState(() {
@@ -103,7 +115,7 @@ class _CameraScreenState extends State<CameraScreen> {
           });
 
           _handleAutoCapture(symmetryScore);
-        } else if (mounted) {
+        } else {
           setState(() {
             _latestPoseResult = null;
             _latestJointStates = {};
@@ -116,40 +128,45 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   void _stopPoseDetection() {
-    if (_controller.value.isStreamingImages) {
+    if (_initializeControllerFuture != null && _controller.value.isStreamingImages) {
       _controller.stopImageStream();
     }
-    setState(() {
-      _latestPoseResult = null;
-      _latestJointStates = {};
-      _symmetryStartTime = null;
-    });
+    _latestPoseResult = null;
+    _latestJointStates = {};
+    _symmetryStartTime = null;
   }
 
   void _handleAutoCapture(double symmetryScore) async {
-    if (_isCapturing) return;
+    if (_isCapturing || !_isAiPoseMode) return;
 
-    if (symmetryScore > 0.9) {
+    // Trigger capture when symmetry score is high (80% alignment) for 1.5 seconds
+    if (symmetryScore >= 0.8) {
       _symmetryStartTime ??= DateTime.now();
       final elapsed = DateTime.now().difference(_symmetryStartTime!);
 
-      if (elapsed.inSeconds >= 2) {
-        // Auto capture
+      if (elapsed.inMilliseconds >= 1500) {
         _isCapturing = true;
+        HapticFeedback.heavyImpact();
+
         try {
           await _controller.takePicture();
-          // Optionally show flash animation or save to gallery here
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Auto-captured perfect pose!')),
+              SnackBar(
+                backgroundColor: const Color(0xFF00E5FF),
+                behavior: SnackBarBehavior.floating,
+                content: const Text(
+                  '✨ Perfect Pose Captured!',
+                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                ),
+              ),
             );
           }
         } catch (e) {
-          print('Error taking picture: $e');
+          debugPrint('Auto-capture error: $e');
         } finally {
           _symmetryStartTime = null;
-          // Add a short delay before allowing next capture
-          await Future.delayed(const Duration(seconds: 2));
+          await Future.delayed(const Duration(seconds: 3));
           _isCapturing = false;
         }
       }
@@ -186,7 +203,9 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void dispose() {
     _stopPoseDetection();
-    _controller.dispose();
+    if (_initializeControllerFuture != null) {
+      _controller.dispose();
+    }
     _poseDetectorService.dispose();
     super.dispose();
   }
@@ -270,9 +289,10 @@ class _CameraScreenState extends State<CameraScreen> {
                 ),
 
                 // AI Pose overlay (dynamic)
-                if (_isAiPoseMode && _latestPoseResult != null)
+                if (_isAiPoseMode && _showPoseGuides)
                   PoseOverlay(
                     poseResult: _latestPoseResult,
+                    currentTemplate: _currentTemplate,
                     jointStates: _latestJointStates,
                     imageSize: imageSize,
                     isFrontCamera: _controller.description.lensDirection == CameraLensDirection.front,
@@ -281,8 +301,16 @@ class _CameraScreenState extends State<CameraScreen> {
                 // Top bar
                 _buildTopBar(),
 
-                // Template selector when in AI mode
+                // AI Pose FAB
                 if (_isAiPoseMode)
+                  Positioned(
+                    right: 20,
+                    bottom: 180,
+                    child: _buildPoseToggleButton(),
+                  ),
+
+                // Template selector when in AI mode
+                if (_isAiPoseMode && _showPoseGuides)
                   Positioned(
                     top: 100,
                     left: 0,
@@ -311,30 +339,40 @@ class _CameraScreenState extends State<CameraScreen> {
                         ),
                         if (_symmetryStartTime != null)
                           Padding(
-                            padding: const EdgeInsets.only(top: 12),
-                            child: Container(
-                              width: 200,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: Colors.white10,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                              child: FractionallySizedBox(
-                                alignment: Alignment.centerLeft,
-                                widthFactor: (DateTime.now().difference(_symmetryStartTime!).inMilliseconds / 2000).clamp(0.0, 1.0),
-                                child: Container(
+                            padding: const EdgeInsets.only(top: 16),
+                            child: Column(
+                              children: [
+                                Container(
+                                  width: 140,
+                                  height: 6,
                                   decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(3),
+                                    border: Border.all(color: Colors.white.withOpacity(0.1), width: 0.5),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(3),
+                                    child: LinearProgressIndicator(
+                                      value: (DateTime.now().difference(_symmetryStartTime!).inMilliseconds / 1500).clamp(0.0, 1.0),
+                                      backgroundColor: Colors.transparent,
+                                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF00E5FF)),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'HOLD STILL...',
+                                  style: TextStyle(
                                     color: const Color(0xFF00E5FF),
-                                    borderRadius: BorderRadius.circular(2),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(0xFF00E5FF).withOpacity(0.5),
-                                        blurRadius: 4,
-                                      ),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 2.0,
+                                    shadows: [
+                                      Shadow(color: const Color(0xFF00E5FF).withOpacity(0.5), blurRadius: 8),
                                     ],
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
                       ],
@@ -369,6 +407,47 @@ class _CameraScreenState extends State<CameraScreen> {
             );
           }
         },
+      ),
+    );
+  }
+
+  Widget _buildPoseToggleButton() {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _showPoseGuides = !_showPoseGuides;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: _showPoseGuides
+              ? const LinearGradient(
+                  colors: [Color(0xFF00E5FF), Color(0xFF00B8D4)],
+                )
+              : null,
+          color: _showPoseGuides ? null : Colors.black.withOpacity(0.5),
+          border: Border.all(
+            color: const Color(0xFF00E5FF).withOpacity(0.5),
+            width: 1,
+          ),
+          boxShadow: _showPoseGuides
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF00E5FF).withOpacity(0.4),
+                    blurRadius: 15,
+                    spreadRadius: 2,
+                  )
+                ]
+              : [],
+        ),
+        child: Icon(
+          _showPoseGuides ? Icons.auto_awesome : Icons.auto_awesome_outlined,
+          color: _showPoseGuides ? Colors.black : Colors.white,
+          size: 26,
+        ),
       ),
     );
   }
