@@ -5,6 +5,7 @@ import '../utils/angle_utils.dart' as au;
 
 class PoseOverlay extends StatelessWidget {
   final PoseResult? poseResult;
+  final PoseTemplate currentTemplate;
   final Map<String, ProximityState> jointStates;
   final Size imageSize;
   final bool isFrontCamera;
@@ -12,6 +13,7 @@ class PoseOverlay extends StatelessWidget {
   const PoseOverlay({
     super.key,
     required this.poseResult,
+    required this.currentTemplate,
     required this.jointStates,
     required this.imageSize,
     this.isFrontCamera = true,
@@ -19,13 +21,14 @@ class PoseOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (poseResult == null || imageSize.isEmpty) {
+    if (imageSize.isEmpty) {
       return const SizedBox.shrink();
     }
 
     return CustomPaint(
       painter: PoseSkeletonPainter(
-        poseResult: poseResult!,
+        poseResult: poseResult,
+        template: currentTemplate,
         jointStates: jointStates,
         imageSize: imageSize,
         isFrontCamera: isFrontCamera,
@@ -36,13 +39,15 @@ class PoseOverlay extends StatelessWidget {
 }
 
 class PoseSkeletonPainter extends CustomPainter {
-  final PoseResult poseResult;
+  final PoseResult? poseResult;
+  final PoseTemplate template;
   final Map<String, ProximityState> jointStates;
   final Size imageSize;
   final bool isFrontCamera;
 
   PoseSkeletonPainter({
     required this.poseResult,
+    required this.template,
     required this.jointStates,
     required this.imageSize,
     required this.isFrontCamera,
@@ -53,15 +58,64 @@ class PoseSkeletonPainter extends CustomPainter {
     final scaleX = size.width / imageSize.width;
     final scaleY = size.height / imageSize.height;
 
-    Offset translatePoint(au.LandmarkPoint point) {
-      double x = point.x * scaleX;
-      if (isFrontCamera) {
-        x = size.width - x;
+    Offset translatePoint(au.LandmarkPoint point, [LandmarkBounds? bounds]) {
+      double x, y;
+      if (bounds != null) {
+        // Map normalized ghost points to detected user's bounding box or center
+        final centerX = (bounds.minX + bounds.maxX) / 2;
+        final centerY = (bounds.minY + bounds.maxY) / 2;
+        final width = (bounds.maxX - bounds.minX) * 1.1; // Add padding
+        final height = (bounds.maxY - bounds.minY) * 1.1;
+
+        x = centerX + (point.x - 0.5) * width;
+        y = centerY + (point.y - 0.5) * height;
+      } else {
+        x = point.x;
+        y = point.y;
       }
-      return Offset(x, point.y * scaleY);
+
+      double finalX = x * scaleX;
+      if (isFrontCamera) {
+        finalX = size.width - finalX;
+      }
+      return Offset(finalX, y * scaleY);
     }
 
-    final landmarks = poseResult.landmarks;
+    // --- Draw Ghost Outline ---
+    final ghostLandmarks = template.ghostLandmarks;
+    if (ghostLandmarks != null) {
+      final bounds = poseResult?.bounds;
+
+      void drawGhostBone(int startIdx, int endIdx) {
+        final startLP = ghostLandmarks[startIdx];
+        final endLP = ghostLandmarks[endIdx];
+        if (startLP == null || endLP == null) return;
+
+        final start = translatePoint(startLP, bounds);
+        final end = translatePoint(endLP, bounds);
+
+        canvas.drawLine(
+          start, end,
+          Paint()
+            ..color = Colors.white.withOpacity(0.2)
+            ..strokeWidth = 3
+            ..strokeCap = StrokeCap.round
+        );
+      }
+
+      // Draw essential ghost bones
+      drawGhostBone(11, 12); // shoulders
+      drawGhostBone(11, 13); drawGhostBone(13, 15); // left arm
+      drawGhostBone(12, 14); drawGhostBone(14, 16); // right arm
+      drawGhostBone(11, 23); drawGhostBone(12, 24); // torso sides
+      drawGhostBone(23, 24); // hips
+      drawGhostBone(23, 25); drawGhostBone(25, 27); // left leg
+      drawGhostBone(24, 26); drawGhostBone(26, 28); // right leg
+    }
+
+    if (poseResult == null) return;
+
+    final landmarks = poseResult!.landmarks;
 
     Offset? getOffset(int typeIndex) {
       final lm = landmarks[typeIndex];
@@ -100,11 +154,11 @@ class PoseSkeletonPainter extends CustomPainter {
       final state = jointStates[jointName] ?? ProximityState.red;
       switch (state) {
         case ProximityState.cyan:
-          return const Color(0xFF00BCD4);
+          return const Color(0xFF00E5FF);
         case ProximityState.yellow:
-          return Colors.yellow;
+          return const Color(0xFFFFEB3B).withOpacity(0.8);
         case ProximityState.red:
-          return Colors.redAccent;
+          return Colors.white.withOpacity(0.5);
       }
     }
 
@@ -112,11 +166,23 @@ class PoseSkeletonPainter extends CustomPainter {
       if (start == null || end == null) return;
 
       final color = getColorForJoint(jointName);
+      final isMatched = jointStates[jointName] == ProximityState.cyan;
+
       final paint = Paint()
         ..color = color
-        ..strokeWidth = 4
+        ..strokeWidth = isMatched ? 5 : 3
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke;
+
+      if (isMatched) {
+        // Glow effect for matched joints
+        canvas.drawLine(start, end, Paint()
+          ..color = color.withOpacity(0.3)
+          ..strokeWidth = 10
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4)
+        );
+      }
 
       canvas.drawLine(start, end, paint);
     }
@@ -125,11 +191,20 @@ class PoseSkeletonPainter extends CustomPainter {
       if (point == null) return;
 
       final color = getColorForJoint(jointName);
+      final isMatched = jointStates[jointName] == ProximityState.cyan;
+
+      if (isMatched) {
+        canvas.drawCircle(point, 8, Paint()
+          ..color = color.withOpacity(0.3)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4)
+        );
+      }
+
       final paint = Paint()
         ..color = color
         ..style = PaintingStyle.fill;
 
-      canvas.drawCircle(point, 6, paint);
+      canvas.drawCircle(point, isMatched ? 6 : 4, paint);
     }
 
     // Draw bones

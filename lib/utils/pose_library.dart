@@ -1,16 +1,5 @@
 import '../models/pose_template.dart';
-
-class PoseTemplate {
-  final String displayName;
-  final Map<String, double> targetAngles;
-  final double tolerance;
-
-  const PoseTemplate({
-    required this.displayName,
-    required this.targetAngles,
-    this.tolerance = 10.0, // degrees
-  });
-}
+import '../utils/angle_utils.dart' as au;
 
 class PoseLibrary {
   static final List<PoseTemplate> templates = [
@@ -40,6 +29,48 @@ class PoseLibrary {
         'left_knee': 90.0,
         'right_knee': 180.0,
         'torso_lean': 15.0,
+      },
+    ),
+    PoseTemplate(
+      displayName: 'Sitting (Couch)',
+      targetAngles: {
+        'left_elbow': 90.0,
+        'right_elbow': 90.0,
+        'left_shoulder': 20.0,
+        'right_shoulder': 20.0,
+        'left_hip': 90.0,
+        'right_hip': 90.0,
+        'left_knee': 90.0,
+        'right_knee': 90.0,
+        'torso_lean': 5.0,
+      },
+    ),
+    PoseTemplate(
+      displayName: 'Leaning',
+      targetAngles: {
+        'left_elbow': 170.0,
+        'right_elbow': 170.0,
+        'left_shoulder': 15.0,
+        'right_shoulder': 45.0,
+        'left_hip': 170.0,
+        'right_hip': 170.0,
+        'left_knee': 180.0,
+        'right_knee': 160.0,
+        'torso_lean': 25.0,
+      },
+    ),
+    PoseTemplate(
+      displayName: 'Squatting',
+      targetAngles: {
+        'left_elbow': 120.0,
+        'right_elbow': 120.0,
+        'left_shoulder': 30.0,
+        'right_shoulder': 30.0,
+        'left_hip': 45.0,
+        'right_hip': 45.0,
+        'left_knee': 45.0,
+        'right_knee': 45.0,
+        'torso_lean': 10.0,
       },
     ),
   ];

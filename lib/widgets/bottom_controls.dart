@@ -20,35 +20,61 @@ class BottomControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      bottom: 40,
+      bottom: 0,
       left: 0,
       right: 0,
-      child: Column(
-        children: [
-          // Feature mode selector
-          FeatureSelector(
-            selectedMode: selectedMode,
-            onModeSelected: onModeSelected,
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            padding: const EdgeInsets.only(bottom: 40, top: 20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withOpacity(0.0),
+                  Colors.black.withOpacity(0.4),
+                  Colors.black.withOpacity(0.6),
+                ],
+              ),
+              border: Border(
+                top: BorderSide(
+                  color: Colors.white.withOpacity(0.1),
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Feature mode selector
+                FeatureSelector(
+                  selectedMode: selectedMode,
+                  onModeSelected: onModeSelected,
+                ),
+
+                const SizedBox(height: 15),
+
+                // Shutter button row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Photo preview thumbnail
+                    _buildPreviewThumbnail(),
+
+                    // Main shutter button
+                    _buildShutterButton(),
+
+                    // Pose Gallery button
+                    _buildPoseGalleryButton(),
+                  ],
+                ),
+              ],
+            ),
           ),
-
-          const SizedBox(height: 20),
-
-          // Shutter button row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Photo preview thumbnail
-              _buildPreviewThumbnail(),
-
-              // Main shutter button
-              _buildShutterButton(),
-
-              // Pose Gallery button
-              _buildPoseGalleryButton(),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -59,35 +85,32 @@ class BottomControls extends StatelessWidget {
         // Open gallery
       },
       child: Container(
-        width: 50,
-        height: 50,
+        width: 52,
+        height: 52,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: Colors.white.withOpacity(0.3),
-            width: 2,
+            color: Colors.white.withOpacity(0.2),
+            width: 1,
           ),
-        ),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: ClipOval(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                  child: Container(
-                    color: Colors.white.withOpacity(0.05),
-                  ),
-                ),
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 10,
             ),
-            const Center(
+          ],
+        ),
+        child: ClipOval(
+          child: Container(
+            color: Colors.white.withOpacity(0.1),
+            child: const Center(
               child: Icon(
-                Icons.camera_alt_outlined,
-                size: 20,
+                Icons.photo_library_outlined,
+                size: 22,
                 color: Colors.white,
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -99,28 +122,27 @@ class BottomControls extends StatelessWidget {
         // Take photo
       },
       child: Container(
-        width: 75,
-        height: 75,
+        width: 82,
+        height: 82,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Colors.white,
           border: Border.all(
-            color: Colors.white.withOpacity(0.5),
-            width: 3,
+            color: Colors.white.withOpacity(0.8),
+            width: 4,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.white.withOpacity(0.3),
-              blurRadius: 12,
-              spreadRadius: 2,
-            ),
-          ],
         ),
-        child: const Center(
-          child: Icon(
-            Icons.circle,
-            color: Colors.transparent,
-            size: 60,
+        padding: const EdgeInsets.all(6),
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF00E5FF).withOpacity(0.3),
+                blurRadius: 15,
+                spreadRadius: 2,
+              ),
+            ],
           ),
         ),
       ),
@@ -133,35 +155,26 @@ class BottomControls extends StatelessWidget {
         // Open pose gallery
       },
       child: Container(
-        width: 50,
-        height: 50,
+        width: 52,
+        height: 52,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: Colors.white.withOpacity(0.3),
-            width: 1.5,
+            color: Colors.white.withOpacity(0.2),
+            width: 1,
           ),
         ),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: ClipOval(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                  child: Container(
-                    color: Colors.white.withOpacity(0.05),
-                  ),
-                ),
-              ),
-            ),
-            const Center(
+        child: ClipOval(
+          child: Container(
+            color: Colors.white.withOpacity(0.1),
+            child: const Center(
               child: Icon(
-                Icons.person_outline,
+                Icons.accessibility_new_rounded,
                 size: 24,
                 color: Colors.white,
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
