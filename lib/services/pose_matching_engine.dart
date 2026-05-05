@@ -42,4 +42,20 @@ class PoseMatchingEngine {
 
     return totalCount > 0 ? cyanCount / totalCount : 0.0;
   }
+
+  static PoseTemplate findBestMatch(Map<String, double> liveAngles) {
+    PoseTemplate bestMatch = PoseLibrary.templates.first;
+    double highestScore = -1.0;
+
+    for (final template in PoseLibrary.templates) {
+      final engine = PoseMatchingEngine(template);
+      final score = engine.calculateSymmetryScore(liveAngles);
+      if (score > highestScore) {
+        highestScore = score;
+        bestMatch = template;
+      }
+    }
+
+    return bestMatch;
+  }
 }
