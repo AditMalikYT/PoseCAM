@@ -51,6 +51,10 @@ class _CameraScreenState extends State<CameraScreen> {
   DateTime? _symmetryStartTime;
   bool _isCapturing = false;
 
+  // Auto-suggestion fields
+  DateTime? _lowSymmetryStartTime;
+  bool _isSuggesting = false;
+
   @override
   void initState() {
     super.initState();
@@ -115,6 +119,7 @@ class _CameraScreenState extends State<CameraScreen> {
           });
 
           _handleAutoCapture(symmetryScore);
+          _handleAutoSuggestion(result.jointAngles, symmetryScore);
         } else {
           setState(() {
             _latestPoseResult = null;
@@ -134,6 +139,48 @@ class _CameraScreenState extends State<CameraScreen> {
     _latestPoseResult = null;
     _latestJointStates = {};
     _symmetryStartTime = null;
+  }
+
+  void _handleAutoSuggestion(Map<String, double> liveAngles, double symmetryScore) {
+    if (!_isAiPoseMode || _isCapturing || _isSuggesting) return;
+
+    if (symmetryScore < 0.3) {
+      _lowSymmetryStartTime ??= DateTime.now();
+      final elapsed = DateTime.now().difference(_lowSymmetryStartTime!);
+
+      if (elapsed.inSeconds >= 4) {
+        _performAutoSuggestion(liveAngles);
+      }
+    } else {
+      _lowSymmetryStartTime = null;
+    }
+  }
+
+  void _performAutoSuggestion(Map<String, double> liveAngles) {
+    setState(() {
+      _isSuggesting = true;
+    });
+
+    final suggestedTemplate = PoseMatchingEngine.findBestMatch(liveAngles);
+
+    if (suggestedTemplate != _currentTemplate) {
+      HapticFeedback.mediumImpact();
+      setState(() {
+        _currentTemplate = suggestedTemplate;
+        _poseMatchingEngine = PoseMatchingEngine(_currentTemplate);
+      });
+    }
+
+    _lowSymmetryStartTime = null;
+
+    // Briefly show suggestion state then clear
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _isSuggesting = false;
+        });
+      }
+    });
   }
 
   void _handleAutoCapture(double symmetryScore) async {
@@ -300,6 +347,56 @@ class _CameraScreenState extends State<CameraScreen> {
 
                 // Top bar
                 _buildTopBar(),
+
+                // AI Suggestion Indicator
+                if (_isSuggesting)
+                  Positioned(
+                    top: 150,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00E5FF).withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFF00E5FF).withOpacity(0.5),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00E5FF)),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  '✨ AI SUGGESTING BEST POSE...',
+                                  style: TextStyle(
+                                    color: const Color(0xFF00E5FF),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
 
                 // AI Pose FAB
                 if (_isAiPoseMode)
