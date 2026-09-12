@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from './state/playerStore';
+import { useProgression } from './hooks/useProgression';
+import LevelUpModal from './components/LevelUpModal';
+import StreakIndicator from './components/StreakIndicator';
 import { eventBus, Events } from './events/eventBus';
 import { initPoseLandmarker, detectPose, isReady } from './utils/poseDetection';
 import {
@@ -40,7 +44,6 @@ import {
   IconCoins,
   IconBolt,
   IconGem,
-  IconFire,
   IconCamera,
   IconTarget,
   IconBug,
@@ -61,6 +64,9 @@ const POSE_CONNECTIONS: [number, number][] = [
   [11, 23], [12, 24], [23, 24],                    // Torso
   [23, 25], [25, 27], [24, 26], [26, 28],          // Legs
 ];
+
+// Weekly streak multiplier formatting (1 -> "1", 1.15 -> "1.15", 2 -> "2")
+const fmtMult = (mult: number) => mult.toFixed(2).replace(/\.?0+$/, '');
 
 // Default pose corrector configuration
 const POSE_CORRECTOR_CONFIG: PoseCorrectorConfig = {
@@ -170,9 +176,23 @@ function App() {
   const lastFrameStart = useRef(performance.now());
 
   const {
-    player, streak, boss, session, addRep, startBossBattle, damageBoss,
+    player, boss, session, addRep, startBossBattle, damageBoss,
     startSession, endSession,
   } = usePlayerStore();
+
+  // Progression system: streak multiplier + level-up celebration triggers
+  const prog = useProgression();
+
+  // Sonar cues: level-up chime + streak-bonus blip
+  useEffect(() => {
+    if (prog.levelUp) playCoachSound('levelUp', true);
+  }, [prog.levelUp]);
+
+  useEffect(() => {
+    if (prog.lastReward && prog.lastReward.bonusXp > 0) {
+      playCoachSound('streakBonus');
+    }
+  }, [prog.lastReward]);
 
   useEffect(() => {
     isDebugModeRef.current = isDebugMode;
@@ -1031,15 +1051,11 @@ function App() {
           </div>
         </div>
 
-        {/* Streak Counter */}
-        {streak.currentStreak > 0 && (
-          <div className="streak-display">
-            <span className="streak-fire">
-              <IconFire width={18} height={18} />
-            </span>
-            <span className="streak-count">{streak.currentStreak} day streak!</span>
-          </div>
-        )}
+        {/* Streak XP Multiplier Indicator (flame pill + tier tooltip) */}
+        <StreakIndicator
+          streak={prog.streak}
+          pulseToken={prog.streakBonusPulse}
+        />
 
         {/* Rep Counter - Cyber HUD Ring (depth / form / rep-burst arcs) */}
         {isExerciseActive && (() => {
@@ -1103,6 +1119,31 @@ function App() {
         {isExerciseActive && repToast && (
           <div className="float-rep-toast">{repToast}</div>
         )}
+
+        {/* Floating streak-bonus XP popups */}
+        <div className="float-xp-layer">
+          <AnimatePresence>
+            {prog.floatingXp.map((item) => (
+              <motion.div
+                key={item.id}
+                className={`float-xp-item ${item.bonusXp > 0 ? 'bonus' : ''}`}
+                style={{ left: `calc(50% + ${(item.id % 4) * 26 - 39}px)` }}
+                initial={{ opacity: 0, x: '-50%', y: 0, scale: 0.5 }}
+                animate={{ opacity: [0, 1, 1, 0], x: '-50%', y: -150, scale: 1 }}
+                exit={{ opacity: 0, y: -120, scale: 0.9 }}
+                transition={{ duration: 1.4, times: [0, 0.15, 0.7, 1], ease: 'easeOut' }}
+              >
+                <span className="float-xp-main">+{item.totalXp} XP</span>
+                {item.bonusXp > 0 && (
+                  <span className="float-xp-bonus">
+                    +{item.bonusXp} BP · ×{fmtMult(item.multiplier)} {item.tierLabel}
+                  </span>
+                )}
+                {item.perfect && <span className="float-xp-perfect">PERFECT</span>}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
 
         {/* Dynamic Exercise Phase Indicator */}
         {isExerciseActive && (
@@ -1365,6 +1406,9 @@ function App() {
         onClose={() => setShowPoseGuide(false)}
         onStartSet={doStartWorkout}
       />
+
+      {/* Level-Up Celebration Sequence */}
+      <LevelUpModal data={prog.levelUp} onClose={prog.dismissLevelUp} />
     </div>
   );
 }

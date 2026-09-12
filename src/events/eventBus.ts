@@ -49,6 +49,7 @@ export const Events = {
   // Progression events
   XP_GAINED: 'xp_gained',
   LEVEL_UP: 'level_up',
+  STREAK_BONUS_AWARDED: 'streak_bonus_awarded',
   COSMETIC_UNLOCKED: 'cosmetic_unlocked',
   ACHIEVEMENT_UNLOCKED: 'achievement_unlocked',
   

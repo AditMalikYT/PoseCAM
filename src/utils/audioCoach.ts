@@ -13,7 +13,9 @@ export type CoachSound =
   | 'fault'         // red-level form fault surfaced
   | 'warning'       // yellow-level deviation
   | 'topPosition'   // bottom (push-up) / chin-over-bar (pull-up) reached
-  | 'repComplete';  // full-ROM rep closed
+  | 'repComplete'   // full-ROM rep closed
+  | 'streakBonus'   // +XP streak multiplier applied
+  | 'levelUp';      // player leveled up!
 
 interface CueTone {
   freq: number;
@@ -44,6 +46,18 @@ const CUES: Record<CoachSound, CueTone[]> = {
     { freq: 880, durMs: 90, type: 'sine', delayMs: 0, gain: 0.22 },
     { freq: 1318.5, durMs: 140, type: 'sine', delayMs: 100, gain: 0.25 },
   ],
+  streakBonus: [
+    { freq: 987.77, durMs: 80, type: 'triangle', delayMs: 0, gain: 0.2 },
+    { freq: 1318.51, durMs: 70, type: 'triangle', delayMs: 70, gain: 0.2 },
+    { freq: 1975.53, durMs: 180, type: 'sine', delayMs: 140, gain: 0.22 },
+  ],
+  levelUp: [
+    { freq: 523.25, durMs: 150, type: 'sine', delayMs: 0, gain: 0.26 },
+    { freq: 659.25, durMs: 150, type: 'sine', delayMs: 110, gain: 0.26 },
+    { freq: 783.99, durMs: 180, type: 'sine', delayMs: 220, gain: 0.28 },
+    { freq: 1046.5, durMs: 460, type: 'sine', delayMs: 330, gain: 0.32 },
+    { freq: 1567.98, durMs: 520, type: 'sine', delayMs: 330, gain: 0.1 },
+  ],
 };
 
 /** Minimum spacing between two plays of the same cue (ms). */
@@ -54,6 +68,8 @@ const RATE_LIMIT_MS: Record<CoachSound, number> = {
   warning: 2500,
   topPosition: 1200,
   repComplete: 300,
+  streakBonus: 600,
+  levelUp: 5000,
 };
 
 let ctx: AudioContext | null = null;

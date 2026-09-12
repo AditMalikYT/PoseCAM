@@ -1,7 +1,18 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { PlayerProgression, StreakData, CosmeticItem, Achievement, UserSettings, BossState, ExerciseSessionState, ExerciseType } from '../types';
-import { xpForLevel, levelFromXp, calculateXpForRep } from '../types/progression';
+import {
+  xpForLevel,
+  levelFromXp,
+  calculateXpForRep,
+  getStreakMultiplier,
+  applyStreakXp,
+  calculateStatIncreases,
+  xpFloorForLevel,
+  rolloverXp,
+} from '../types/progression';
+import type { LevelUpData, RepRewardInfo } from '../types/progression';
+import { eventBus, Events } from '../events/eventBus';
 const defaultPlayer: PlayerProgression = {
   currentLevel: 1, currentXp: 0, totalXpEarned: 0, xpToNextLevel: xpForLevel(1),
   stats: { strength: 10, endurance: 10, flexibility: 5, totalReps: 0, totalWorkouts: 0 },
@@ -36,7 +47,12 @@ const defaultSession: ExerciseSessionState = {
 interface PlayerStore {
   player: PlayerProgression; streak: StreakData; cosmetics: CosmeticItem[];
   achievements: Achievement[]; settings: UserSettings; boss: BossState; session: ExerciseSessionState;
+  /** Transient per-rep reward (floating XP + streak bonus). Cleared by the next rep. */
+  lastRepReward: RepRewardInfo | null;
+  /** Transient level-up snapshot ready for the reward sequence. */
+  levelUp: LevelUpData | null;
   addXp: (amount: number) => void; addRep: (formScore: number) => void;
+  consumeLevelUp: () => void;
   startBossBattle: (bossId: string, bossName: string, maxHealth: number) => void;
   damageBoss: (damage: number, formScore: number) => void; defeatBoss: () => void;
   updateStreak: () => void; unlockCosmetic: (id: string) => void; equipCosmetic: (id: string) => void;
@@ -50,19 +66,66 @@ export const usePlayerStore = create<PlayerStore>()(
       player: defaultPlayer, streak: defaultStreak, cosmetics: defaultCosmetics,
       achievements: defaultAchievements, settings: defaultSettings,
       boss: defaultBoss, session: defaultSession,
+      lastRepReward: null, levelUp: null,
       addXp: (amount: number) => {
         const state = get();
+        const prevLevel = state.player.currentLevel;
         const newTotalXp = state.player.totalXpEarned + amount;
         const newLevel = levelFromXp(newTotalXp);
-        set({ player: { ...state.player, currentXp: newTotalXp - xpForLevel(newLevel), totalXpEarned: newTotalXp, currentLevel: newLevel, xpToNextLevel: xpForLevel(newLevel + 1) } });
+        let stats = state.player.stats;
+        let levelUp: LevelUpData | null = null;
+
+        if (newLevel > prevLevel) {
+          const increases = calculateStatIncreases(state.player.stats, newLevel);
+          stats = {
+            ...stats,
+            strength: stats.strength + (increases.strength ?? 0),
+            endurance: stats.endurance + (increases.endurance ?? 0),
+            flexibility: stats.flexibility + (increases.flexibility ?? 0),
+          };
+          levelUp = {
+            previousLevel: prevLevel,
+            newLevel,
+            xpBefore: state.player.totalXpEarned,
+            xpAfter: newTotalXp,
+            xpGained: amount,
+            newStatIncreases: increases,
+          };
+        }
+
+        set({
+          player: {
+            ...state.player,
+            currentXp: rolloverXp(newTotalXp, newLevel),
+            totalXpEarned: newTotalXp,
+            currentLevel: newLevel,
+            xpToNextLevel: xpForLevel(newLevel + 1),
+            stats,
+          },
+          levelUp,
+        });
+        if (levelUp) eventBus.emit(Events.LEVEL_UP, levelUp);
+        eventBus.emit(Events.XP_GAINED, { amount, total: newTotalXp });
       },
+      consumeLevelUp: () => set({ levelUp: null }),
       addRep: (formScore: number) => {
         const state = get();
-        const xp = calculateXpForRep(state.player.currentLevel, formScore);
         get().updateStreak();
-        get().addXp(xp);
-        get().addRepToSession(xp);
+        const streakDays = get().streak.currentStreak;
+        const baseXp = calculateXpForRep(state.player.currentLevel, formScore);
+        const { totalXp, bonusXp, multiplier, tierLabel } = applyStreakXp(baseXp, streakDays);
+        get().addXp(totalXp);
+        get().addRepToSession(totalXp);
+        set({
+          lastRepReward: {
+            formScore, baseXp, totalXp, bonusXp, multiplier,
+            streakDays, tierLabel, perfect: formScore >= 95,
+          },
+        });
         get().updateAchievementProgress('fr', 1);
+        if (bonusXp > 0) {
+          eventBus.emit(Events.STREAK_BONUS_AWARDED, { bonusXp, multiplier, streakDays });
+        }
       },
       startBossBattle: (bossId, bossName, maxHealth) => set({
         boss: { isActive: true, bossId, bossName, bossHealth: maxHealth, maxHealth, damageDealt: 0, currentPhase: 'battle', phaseStartTime: Date.now(), comboCount: 0, lastHitTime: null, specialAttackImminent: false },
