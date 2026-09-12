@@ -1,0 +1,14 @@
+const fs = require('fs');
+const p = require('path').join(__dirname, '..', 'src', 'index.css');
+const a = (s) => fs.appendFileSync(p, s);
+a('\n');
+a('.btn-boss { position: fixed; right: 1.25rem; bottom: 7.5rem; padding: 0.65rem 1.3rem; border-radius: 50px; border: 2px solid var(--neon-gold); background: rgba(255, 215, 0, 0.08); color: var(--neon-gold); font-weight: 800; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1.5px; cursor: pointer; transition: all 0.3s ease; animation: boss-pulse 2s ease-in-out infinite; min-width: 44px; min-height: 44px; z-index: 14; }\n');
+a('@keyframes boss-pulse { 0%, 100% { box-shadow: 0 0 12px rgba(255, 215, 0, 0.3); } 50% { box-shadow: 0 0 25px rgba(255, 215, 0, 0.5), 0 0 50px rgba(255, 215, 0, 0.2); } }\n');
+a('.btn-boss:hover { background: var(--neon-gold); color: #000; box-shadow: 0 0 40px rgba(255, 215, 0, 0.6); transform: translateY(-2px); animation: none; }\n');
+a('\n');
+a('.boss-health-container { position: fixed; top: 5.5rem; left: 50%; transform: translateX(-50%); width: min(380px, 75vw); z-index: 15; animation: slide-down 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }\n');
+a('@keyframes slide-down { 0% { opacity: 0; transform: translateX(-50%) translateY(-20px); } 100% { opacity: 1; transform: translateX(-50%) translateY(0); } }\n');
+a('.boss-name { text-align: center; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: var(--neon-gold); margin-bottom: 0.4rem; text-shadow: 0 0 15px rgba(255, 215, 0, 0.5); }\n');
+a('.boss-health-track { width: 100%; height: 12px; background: rgba(0, 0, 0, 0.6); border-radius: 6px; border: 1px solid rgba(255, 215, 0, 0.25); overflow: hidden; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6), 0 0 12px rgba(255, 215, 0, 0.15); }\n');
+a('.boss-health-fill { height: 100%; background: linear-gradient(90deg, var(--neon-red), var(--neon-amber), var(--neon-gold)); border-radius: 6px; transition: width 0.35s ease; box-shadow: 0 0 15px var(--neon-red), inset 0 0 8px rgba(255, 255, 255, 0.2); }\n');
+console.log('Chunk 5 done');

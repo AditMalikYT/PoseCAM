@@ -1,0 +1,31 @@
+const fs = require('fs');
+const path = require('path');
+const target = path.join(__dirname, '..', 'src', 'index.css');
+
+let css = '';
+css += '\n';
+css += 'body, html { width: 100%; height: 100%; overflow: hidden; background-color: var(--bg-dark); font-family: var(--font-primary); color: var(--text-main); }\n';
+css += '#root { width: 100%; height: 100%; position: relative; }\n';
+css += '.app { width: 100vw; height: 100vh; position: relative; overflow: hidden; display: flex; flex-direction: column; }\n';
+css += '\n';
+css += '.app::after {\n';
+css += '  content: \'\';\n';
+css += '  position: fixed;\n';
+css += '  top: 0; left: 0; right: 0; bottom: 0;\n';
+css += '  pointer-events: none;\n';
+css += '  z-index: 999;\n';
+css += '  background: repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0, 243, 255, 0.015) 2px, rgba(0, 243, 255, 0.015) 4px);\n';
+css += '  mix-blend-mode: overlay;\n';
+css += '}\n';
+css += '\n';
+css += '.video-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; background: #000; }\n';
+css += '.video-feed { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); filter: brightness(0.85) contrast(1.05); }\n';
+css += '.pose-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; transform: scaleX(-1); }\n';
+css += '#ar-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; }\n';
+css += '\n';
+css += '.hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; padding: 1.25rem 1.5rem; display: flex; flex-direction: column; justify-content: space-between; }\n';
+css += '.hud * { pointer-events: auto; }\n';
+css += '.hud-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; width: 100%; }\n';
+
+fs.writeFileSync(target, css);
+console.log('Part 2 written');
