@@ -211,3 +211,32 @@ export function IconActivity(d: IconProps) {
     </svg>
   );
 }
+
+export function IconBag(d: IconProps) {
+  return (
+    <svg {...base(d)}>
+      <path d="M4.5 8.5h15l-1 11a2 2 0 0 1-2 1.9H7.5a2 2 0 0 1-2-1.9l-1-11Z" />
+      <path d="M8.5 9V6.2a3.5 3.5 0 0 1 7 0V9" />
+      <path d="M9 13.5h.01M15 13.5h.01" />
+    </svg>
+  );
+}
+
+export function IconLock(d: IconProps) {
+  return (
+    <svg {...base(d)}>
+      <rect x="5" y="10.5" width="14" height="9.5" rx="2" />
+      <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+      <path d="M12 14v2.5" />
+    </svg>
+  );
+}
+
+export function IconShirt(d: IconProps) {
+  return (
+    <svg {...base(d)}>
+      <path d="M5 5h4l3 3 3-3h4l2.4 4.4L17 12.5V19H7v-6.5L2.6 9.4 5 5Z" />
+      <path d="M12 8v11" />
+    </svg>
+  );
+}

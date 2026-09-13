@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from './state/playerStore';
 import { useProgression } from './hooks/useProgression';
 import LevelUpModal from './components/LevelUpModal';
 import StreakIndicator from './components/StreakIndicator';
+import CosmeticsLocker from './components/CosmeticsLocker';
+import UnlockCelebrationModal from './components/UnlockCelebrationModal';
 import { eventBus, Events } from './events/eventBus';
 import { initPoseLandmarker, detectPose, isReady } from './utils/poseDetection';
 import {
@@ -33,6 +35,7 @@ import {
 } from './utils/repDetection';
 import type { ExerciseRepStateMachine } from './utils/repDetection';
 import { setupThreeScene, ThreeSceneSetup } from './utils/threeScene';
+import { AuraRenderer } from './utils/auraRenderer';
 import { FormAnalyzer } from './utils/FormAnalyzer';
 import type { FormStatus, GuidanceExercise } from './types/formAnalyzer';
 import { FAULT_SEVERITY } from './types/formAnalyzer';
@@ -52,6 +55,7 @@ import {
   IconPlay,
   IconPause,
   IconShield,
+  IconBag,
 } from './components/icons';
 import type { PoseLandmark, PoseLandmarkIndex } from './types/pose';
 import type { ExerciseType } from './types/exercise';
@@ -164,6 +168,7 @@ function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const threeSetupRef = useRef<ThreeSceneSetup | null>(null);
+  const auraRendererRef = useRef<AuraRenderer | null>(null);
   const stateMachineRef = useRef<ExerciseRepStateMachine>({ ...DEFAULT_STATE_MACHINE });
   const isDebugModeRef = useRef(isDebugMode);
   // Timestamp of the last frame that produced usable landmarks (FSM dropout expiry)
@@ -182,6 +187,36 @@ function App() {
 
   // Progression system: streak multiplier + level-up celebration triggers
   const prog = useProgression();
+
+  // Cosmetic locker + equipped cosmetics (HUD accent + 3D aura config)
+  const [lockerOpen, setLockerOpen] = useState(false);
+  const equippedItems = usePlayerStore((s) => s.equipped);
+  const cosmeticsList = usePlayerStore((s) => s.cosmetics);
+
+  // Push the equipped aura/accessory visuals into the Three.js scene
+  useEffect(() => {
+    const find = (id: string | null) => cosmeticsList.find((c) => c.id === id) ?? null;
+    const auraItem = find(equippedItems.aura);
+    const accessoryItem = find(equippedItems.accessory);
+    const hasFx = !!(auraItem?.aura || accessoryItem?.accessory);
+    auraRendererRef.current?.setConfig(
+      hasFx ? { aura: auraItem?.aura ?? null, accessory: accessoryItem?.accessory ?? null } : null
+    );
+  }, [equippedItems, cosmeticsList]);
+
+  // Equipped cosmetics resolved for HUD accent + locker chips
+  const eqAvatar = useMemo(
+    () => cosmeticsList.find((c) => c.id === equippedItems.avatar) ?? null,
+    [cosmeticsList, equippedItems.avatar]
+  );
+  const eqAura = useMemo(
+    () => cosmeticsList.find((c) => c.id === equippedItems.aura) ?? null,
+    [cosmeticsList, equippedItems.aura]
+  );
+  const eqAcc = useMemo(
+    () => cosmeticsList.find((c) => c.id === equippedItems.accessory) ?? null,
+    [cosmeticsList, equippedItems.accessory]
+  );
 
   // Sonar cues: level-up chime + streak-bonus blip
   useEffect(() => {
@@ -236,6 +271,18 @@ function App() {
       }
       setup = sceneSetup;
       threeSetupRef.current = sceneSetup;
+      auraRendererRef.current = new AuraRenderer(sceneSetup.scene, sceneSetup.camera);
+      // Seed with the currently equipped aura/accessory config (live updates
+      // arrive via the equipped-cosmetics effect below)
+      const initial = usePlayerStore.getState();
+      const eqAura = initial.cosmetics.find((c) => c.id === initial.equipped.aura);
+      const eqAcc = initial.cosmetics.find((c) => c.id === initial.equipped.accessory);
+      if (eqAura?.aura || eqAcc?.accessory) {
+        auraRendererRef.current.setConfig({
+          aura: eqAura?.aura ?? null,
+          accessory: eqAcc?.accessory ?? null,
+        });
+      }
       // Sync XR support flag to React state (no UI banner — silent detection)
       setXrSupported(sceneSetup.xrSupported);
       animationFrameId = requestAnimationFrame(renderLoop);
@@ -244,6 +291,8 @@ function App() {
     return () => {
       disposed = true;
       cancelAnimationFrame(animationFrameId);
+      auraRendererRef.current?.dispose();
+      auraRendererRef.current = null;
       if (setup) {
         setup.renderer.dispose();
         setup.renderer.domElement.remove();
@@ -361,6 +410,14 @@ function App() {
 
       // Use landmarks directly (smoothing is built into the detector now)
       const smoothedLandmarks = pose.landmarks;
+
+      // Live cosmetic FX on the skeleton (aura rings, chest glow, wrist trails)
+      auraRendererRef.current?.update(
+        smoothedLandmarks,
+        stateMachineRef.current.phase,
+        now,
+        frameTimeMs / 1000
+      );
 
       /* === AR Form & Pose Guidance: analyze form every frame === */
       if (isFormGuidanceEnabled && formAnalyzerRef.current) {
@@ -984,8 +1041,11 @@ function App() {
       {/* Glassmorphic Cyber-HUD */}
       <div className="hud">
         <div className="hud-top">
-          {/* Character Card */}
-          <div className="character-card">
+          {/* Character Card (equipped avatar accent via --avatar-accent) */}
+          <div
+            className="character-card"
+            style={{ '--avatar-accent': eqAvatar?.avatarColor ?? '#00f0ff' } as React.CSSProperties}
+          >
             <div className="level-display">
               <span className="level-number">Lv.{player.currentLevel}</span>
             </div>
@@ -993,13 +1053,45 @@ function App() {
               <div className="xp-bar-track">
                 <div
                   className="xp-bar-fill"
-                  style={{ width: `${Math.min(100, (player.currentXp / player.xpToNextLevel) * 100)}%` }}
+                  style={{
+                    width: `${Math.min(100, (player.currentXp / player.xpToNextLevel) * 100)}%`,
+                    background: eqAura?.aura
+                      ? `linear-gradient(90deg, var(--energy-cyan), ${eqAura.aura.color})`
+                      : undefined,
+                  }}
                 />
               </div>
               <div className="xp-bar-label">
                 <span>XP</span>
                 <span>{player.currentXp} / {player.xpToNextLevel}</span>
               </div>
+            </div>
+            {/* Equipped cosmetics (HUD reads the avatar/aura/accessory accent) */}
+            <div className="equipped-chip">
+              {(eqAvatar || eqAura || eqAcc) ? (
+                <>
+                  {eqAvatar && (
+                    <span className="equipped-chip-item" style={{ color: eqAvatar.avatarColor }}>
+                      <span className="equipped-chip-dot" style={{ background: eqAvatar.avatarColor, boxShadow: `0 0 8px ${eqAvatar.avatarColor}` }} />
+                      {eqAvatar.name}
+                    </span>
+                  )}
+                  {eqAura && (
+                    <span className="equipped-chip-item" style={{ color: eqAura.aura?.color }}>
+                      <span className="equipped-chip-dot" style={{ background: eqAura.aura?.color, boxShadow: `0 0 8px ${eqAura.aura?.color}` }} />
+                      {eqAura.name}
+                    </span>
+                  )}
+                  {eqAcc && (
+                    <span className="equipped-chip-item" style={{ color: eqAcc.accessory?.color }}>
+                      <span className="equipped-chip-dot" style={{ background: eqAcc.accessory?.color, boxShadow: `0 0 8px ${eqAcc.accessory?.color}` }} />
+                      {eqAcc.name}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className="equipped-chip-empty">Open Locker to customise</span>
+              )}
             </div>
           </div>
 
@@ -1377,6 +1469,14 @@ function App() {
         >
           <IconBookOpen width={20} height={20} />
         </button>
+        <button
+          className={`dock-btn ${lockerOpen ? 'active' : ''}`}
+          onClick={() => setLockerOpen(!lockerOpen)}
+          title="Cosmetic Locker"
+          aria-label="Cosmetic Locker"
+        >
+          <IconBag width={20} height={20} />
+        </button>
       </div>
 
       {/* Pose Corrector Status Indicator */}
@@ -1409,6 +1509,12 @@ function App() {
 
       {/* Level-Up Celebration Sequence */}
       <LevelUpModal data={prog.levelUp} onClose={prog.dismissLevelUp} />
+
+      {/* Cosmetic unlock celebrations (queued, rarity-coded) */}
+      <UnlockCelebrationModal />
+
+      {/* Cosmetic Locker - inventory & equip flow */}
+      <CosmeticsLocker open={lockerOpen} onClose={() => setLockerOpen(false)} />
     </div>
   );
 }

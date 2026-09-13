@@ -51,6 +51,7 @@ export const Events = {
   LEVEL_UP: 'level_up',
   STREAK_BONUS_AWARDED: 'streak_bonus_awarded',
   COSMETIC_UNLOCKED: 'cosmetic_unlocked',
+  COSMETIC_EQUIPPED: 'cosmetic_equipped',
   ACHIEVEMENT_UNLOCKED: 'achievement_unlocked',
   
   // UI events

@@ -1,5 +1,7 @@
 // Player/Avatar state
 
+import type { CosmeticItem } from './cosmetics';
+
 export interface PlayerStats {
   strength: number;      // 1-100 scale
   endurance: number;     // 1-100 scale
@@ -39,23 +41,9 @@ export interface StreakData {
   streakStartDate: string;      // When current streak started
 }
 
-// Unlockable cosmetic items
-export interface CosmeticItem {
-  id: string;
-  name: string;
-  type: 'costume' | 'weapon' | 'accessory' | 'pet' | 'aura';
-  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
-  description: string;
-  unlockRequirements: {
-    level?: number;
-    totalReps?: number;
-    achievements?: string[];
-  };
-  modelPath?: string;          // Path to 3D model file
-  texturePath?: string;        // Path to texture file
-  unlocked: boolean;
-  equipped: boolean;
-}
+// Unlockable cosmetic items (category-based schema lives in ./cosmetics)
+// The richer CosmeticItem type is defined in types/cosmetics.ts and re-exported
+// from types/index.ts so stores can import it via '../types'.
 
 // Achievement definitions
 export interface Achievement {

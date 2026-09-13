@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { PlayerProgression, StreakData, CosmeticItem, Achievement, UserSettings, BossState, ExerciseSessionState, ExerciseType } from '../types';
+import type { PlayerProgression, StreakData, CosmeticItem, ItemCategory, Achievement, UserSettings, BossState, ExerciseSessionState, ExerciseType } from '../types';
 import {
   xpForLevel,
   levelFromXp,
@@ -12,7 +12,19 @@ import {
   rolloverXp,
 } from '../types/progression';
 import type { LevelUpData, RepRewardInfo } from '../types/progression';
+import {
+  seedInventory,
+  buildProgressionSnapshot,
+  passesRequirements,
+  rarityRank,
+  outranks,
+  CATEGORY_ORDER,
+  isLegacyInventoryItem,
+} from '../types/cosmetics';
 import { eventBus, Events } from '../events/eventBus';
+
+const seed = seedInventory();
+
 const defaultPlayer: PlayerProgression = {
   currentLevel: 1, currentXp: 0, totalXpEarned: 0, xpToNextLevel: xpForLevel(1),
   stats: { strength: 10, endurance: 10, flexibility: 5, totalReps: 0, totalWorkouts: 0 },
@@ -21,10 +33,6 @@ const defaultPlayer: PlayerProgression = {
 const defaultStreak: StreakData = {
   currentStreak: 0, longestStreak: 0, lastWorkoutDate: new Date().toISOString(), streakStartDate: new Date().toISOString(),
 };
-const defaultCosmetics: CosmeticItem[] = [
-  { id: 'cs', name: 'Starter Outfit', type: 'costume', rarity: 'common', description: 'Basic', unlockRequirements: {}, unlocked: true, equipped: true },
-  { id: 'ag', name: 'Golden Aura', type: 'aura', rarity: 'rare', description: 'Golden shimmer', unlockRequirements: { level: 5 }, unlocked: false, equipped: false },
-];
 const defaultAchievements: Achievement[] = [
   { id: 'fr', name: 'First Steps', description: 'Complete your first rep', requirements: { type: 'reps', target: 1, exerciseType: 'pushups' }, unlocked: false, progress: 0 },
 ];
@@ -44,9 +52,14 @@ const defaultSession: ExerciseSessionState = {
   phaseStartTime: null, repHistory: [], sessionReps: 0, estimatedCalories: 0,
   sessionXp: 0, duration: 0,
 };
+
 interface PlayerStore {
   player: PlayerProgression; streak: StreakData; cosmetics: CosmeticItem[];
   achievements: Achievement[]; settings: UserSettings; boss: BossState; session: ExerciseSessionState;
+  /** One equipped cosmetic id per category. */
+  equipped: Record<ItemCategory, string | null>;
+  /** Queue of recently unlocked items awaiting the celebration modal. */
+  pendingUnlocks: CosmeticItem[];
   /** Transient per-rep reward (floating XP + streak bonus). Cleared by the next rep. */
   lastRepReward: RepRewardInfo | null;
   /** Transient level-up snapshot ready for the reward sequence. */
@@ -55,17 +68,23 @@ interface PlayerStore {
   consumeLevelUp: () => void;
   startBossBattle: (bossId: string, bossName: string, maxHealth: number) => void;
   damageBoss: (damage: number, formScore: number) => void; defeatBoss: () => void;
-  updateStreak: () => void; unlockCosmetic: (id: string) => void; equipCosmetic: (id: string) => void;
+  updateStreak: () => void;
+  /** Evaluate all lock requirements against live progression; unlock + queue + auto-equip better rarities. */
+  syncCosmeticUnlocks: () => void;
+  unlockCosmetic: (id: string) => void; equipCosmetic: (id: string) => void;
+  dismissPendingUnlock: (id: string) => void; flushPendingUnlocks: () => void;
   unlockAchievement: (id: string) => void; updateAchievementProgress: (id: string, progress: number) => void;
   updateSettings: (settings: Partial<UserSettings>) => void;
   startSession: (type: ExerciseType) => void; endSession: () => void; addRepToSession: (xp: number) => void;
 }
+
 export const usePlayerStore = create<PlayerStore>()(
   persist(
     (set, get) => ({
-      player: defaultPlayer, streak: defaultStreak, cosmetics: defaultCosmetics,
+      player: defaultPlayer, streak: defaultStreak, cosmetics: seed.items,
       achievements: defaultAchievements, settings: defaultSettings,
       boss: defaultBoss, session: defaultSession,
+      equipped: seed.equipped, pendingUnlocks: [],
       lastRepReward: null, levelUp: null,
       addXp: (amount: number) => {
         const state = get();
@@ -106,6 +125,7 @@ export const usePlayerStore = create<PlayerStore>()(
         });
         if (levelUp) eventBus.emit(Events.LEVEL_UP, levelUp);
         eventBus.emit(Events.XP_GAINED, { amount, total: newTotalXp });
+        get().syncCosmeticUnlocks();
       },
       consumeLevelUp: () => set({ levelUp: null }),
       addRep: (formScore: number) => {
@@ -116,17 +136,80 @@ export const usePlayerStore = create<PlayerStore>()(
         const { totalXp, bonusXp, multiplier, tierLabel } = applyStreakXp(baseXp, streakDays);
         get().addXp(totalXp);
         get().addRepToSession(totalXp);
+        // Milestone: cumulative reps across the whole account
+        const cur = get().player;
         set({
+          player: { ...cur, stats: { ...cur.stats, totalReps: cur.stats.totalReps + 1 } },
           lastRepReward: {
             formScore, baseXp, totalXp, bonusXp, multiplier,
             streakDays, tierLabel, perfect: formScore >= 95,
           },
         });
-        get().updateAchievementProgress('fr', 1);
+        get().updateAchievementProgress('fr', get().player.stats.totalReps);
         if (bonusXp > 0) {
           eventBus.emit(Events.STREAK_BONUS_AWARDED, { bonusXp, multiplier, streakDays });
         }
+        get().syncCosmeticUnlocks();
       },
+      syncCosmeticUnlocks: () => {
+        const state = get();
+        const snap = buildProgressionSnapshot(state.player, state.streak);
+        const items: CosmeticItem[] = [];
+        const newly: CosmeticItem[] = [];
+        for (const seedItem of state.cosmetics) {
+          if (!seedItem.unlocked && passesRequirements(seedItem.unlockRequirements, snap)) {
+            const unlocked = { ...seedItem, unlocked: true };
+            items.push(unlocked);
+            newly.push(unlocked);
+          } else {
+            items.push(seedItem);
+          }
+        }
+        if (newly.length === 0) return;
+
+        // Auto-equip the best newly-unlocked rarity per category
+        const equipped = { ...state.equipped };
+        for (const cat of CATEGORY_ORDER) {
+          const current = equipped[cat] ? items.find((i) => i.id === equipped[cat]) : null;
+          const best = newly
+            .filter((i) => i.category === cat)
+            .sort((a, b) => rarityRank(b.rarity) - rarityRank(a.rarity))[0];
+          if (best && (!current || outranks(best.rarity, current.rarity))) equipped[cat] = best.id;
+        }
+        const finalItems = items.map((i) => ({ ...i, equipped: equipped[i.category] === i.id }));
+        const pendingUnlocks = [...state.pendingUnlocks, ...newly].slice(-6);
+        set({ cosmetics: finalItems, equipped, pendingUnlocks });
+        for (const item of newly) eventBus.emit(Events.COSMETIC_UNLOCKED, item);
+      },
+      unlockCosmetic: (id) => {
+        const state = get();
+        const existing = state.cosmetics.find((c) => c.id === id);
+        if (!existing || existing.unlocked) return;
+        const unlocked = { ...existing, unlocked: true };
+        set({
+          cosmetics: state.cosmetics.map((c) => (c.id === id ? unlocked : c)),
+          pendingUnlocks: [...state.pendingUnlocks, unlocked].slice(-6),
+        });
+        eventBus.emit(Events.COSMETIC_UNLOCKED, unlocked);
+      },
+      equipCosmetic: (id) => {
+        const state = get();
+        const item = state.cosmetics.find((c) => c.id === id);
+        if (!item || !item.unlocked) return;
+        if (state.equipped[item.category] === id) return;
+        const equipped: Record<ItemCategory, string | null> = { ...state.equipped };
+        equipped[item.category] = id;
+        set({
+          cosmetics: state.cosmetics.map((c) =>
+            c.category === item.category ? { ...c, equipped: c.id === id } : c
+          ),
+          equipped,
+        });
+        eventBus.emit(Events.COSMETIC_EQUIPPED, { item, category: item.category });
+      },
+      dismissPendingUnlock: (id) =>
+        set({ pendingUnlocks: get().pendingUnlocks.filter((u) => u.id !== id) }),
+      flushPendingUnlocks: () => set({ pendingUnlocks: [] }),
       startBossBattle: (bossId, bossName, maxHealth) => set({
         boss: { isActive: true, bossId, bossName, bossHealth: maxHealth, maxHealth, damageDealt: 0, currentPhase: 'battle', phaseStartTime: Date.now(), comboCount: 0, lastHitTime: null, specialAttackImminent: false },
       }),
@@ -149,15 +232,51 @@ export const usePlayerStore = create<PlayerStore>()(
         else if (lastDate !== today) { const y = new Date(); y.setDate(y.getDate() - 1); if (lastDate !== y.toISOString().split('T')[0]) newStreak = 1; else newStreak += 1; }
         set({ streak: { ...state.streak, currentStreak: newStreak, lastWorkoutDate: new Date().toISOString(), longestStreak: Math.max(state.streak.longestStreak, newStreak) } });
       },
-      unlockCosmetic: (id) => set({ cosmetics: get().cosmetics.map(c => c.id === id ? { ...c, unlocked: true } : c) }),
-      equipCosmetic: (id) => set({ cosmetics: get().cosmetics.map(c => c.id === id ? { ...c, equipped: !c.equipped } : c) }),
       unlockAchievement: (id) => { const a = get().achievements.find(x => x.id === id); if (a && !a.unlocked) set({ achievements: get().achievements.map(x => x.id === id ? { ...x, unlocked: true, unlockedDate: new Date().toISOString() } : x) }); },
       updateAchievementProgress: (id, progress) => { set({ achievements: get().achievements.map(a => a.id === id ? { ...a, progress: Math.min(a.requirements.target, progress) } : a) }); const a = get().achievements.find(x => x.id === id); if (a && a.progress >= a.requirements.target) get().unlockAchievement(id); },
       updateSettings: (newSettings) => set({ settings: { ...get().settings, ...newSettings } }),
       startSession: (type) => set({ session: { ...defaultSession, exerciseType: type, isActive: true, startTime: Date.now() } }),
-      endSession: () => { const s = get(); const dur = s.session.startTime ? (Date.now() - s.session.startTime) / 1000 : 0; set({ session: { ...s.session, isActive: false, duration: dur } }); },
+      endSession: () => {
+        const s = get();
+        const dur = s.session.startTime ? (Date.now() - s.session.startTime) / 1000 : 0;
+        const cur = get().player;
+        set({
+          session: { ...s.session, isActive: false, duration: dur },
+          player: { ...cur, stats: { ...cur.stats, totalWorkouts: cur.stats.totalWorkouts + 1 } },
+        });
+        get().syncCosmeticUnlocks();
+      },
       addRepToSession: (xp) => set({ session: { ...get().session, repCount: get().session.repCount + 1, sessionXp: get().session.sessionXp + xp } }),
     }),
-    { name: 'argym-player-store', version: 1, partialize: (state) => ({ player: state.player, streak: state.streak, cosmetics: state.cosmetics, achievements: state.achievements, settings: state.settings }) }
+    {
+      name: 'argym-player-store',
+      version: 2,
+      migrate: (persisted, _version) => {
+        const state = (persisted ?? {}) as Partial<PlayerStore>;
+        // Reseed the roster when a v1 save predates the category-based schema
+        const cosmetics = Array.isArray(state.cosmetics)
+          ? (state.cosmetics as CosmeticItem[]).some(isLegacyInventoryItem)
+            ? seed.items
+            : state.cosmetics
+          : seed.items;
+        const equipped: Record<ItemCategory, string | null> =
+          state.equipped ?? { avatar: null, aura: null, accessory: null };
+        const migrated = {
+          ...state,
+          cosmetics: cosmetics as CosmeticItem[],
+          equipped,
+          pendingUnlocks: [],
+        };
+        return migrated as PlayerStore;
+      },
+      partialize: (state) => ({
+        player: state.player,
+        streak: state.streak,
+        cosmetics: state.cosmetics,
+        achievements: state.achievements,
+        settings: state.settings,
+        equipped: state.equipped,
+      }),
+    }
   )
 );

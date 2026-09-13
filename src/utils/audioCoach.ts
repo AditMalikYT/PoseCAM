@@ -15,7 +15,9 @@ export type CoachSound =
   | 'topPosition'   // bottom (push-up) / chin-over-bar (pull-up) reached
   | 'repComplete'   // full-ROM rep closed
   | 'streakBonus'   // +XP streak multiplier applied
-  | 'levelUp';      // player leveled up!
+  | 'levelUp'       // player leveled up!
+  | 'cosmeticUnlock'// new cosmetic item unlocked
+  | 'cosmeticEquip';// item equipped from the locker
 
 interface CueTone {
   freq: number;
@@ -58,6 +60,16 @@ const CUES: Record<CoachSound, CueTone[]> = {
     { freq: 1046.5, durMs: 460, type: 'sine', delayMs: 330, gain: 0.32 },
     { freq: 1567.98, durMs: 520, type: 'sine', delayMs: 330, gain: 0.1 },
   ],
+  cosmeticUnlock: [
+    { freq: 659.25, durMs: 110, type: 'sine', delayMs: 0, gain: 0.24 },
+    { freq: 830.61, durMs: 110, type: 'sine', delayMs: 110, gain: 0.24 },
+    { freq: 987.77, durMs: 140, type: 'sine', delayMs: 220, gain: 0.26 },
+    { freq: 1318.51, durMs: 380, type: 'sine', delayMs: 330, gain: 0.3 },
+  ],
+  cosmeticEquip: [
+    { freq: 587.33, durMs: 90, type: 'triangle', delayMs: 0, gain: 0.2 },
+    { freq: 880, durMs: 160, type: 'triangle', delayMs: 70, gain: 0.22 },
+  ],
 };
 
 /** Minimum spacing between two plays of the same cue (ms). */
@@ -70,6 +82,8 @@ const RATE_LIMIT_MS: Record<CoachSound, number> = {
   repComplete: 300,
   streakBonus: 600,
   levelUp: 5000,
+  cosmeticUnlock: 2500,
+  cosmeticEquip: 500,
 };
 
 let ctx: AudioContext | null = null;
