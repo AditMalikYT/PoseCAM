@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from './state/playerStore';
 import { useProgression } from './hooks/useProgression';
-import LevelUpModal from './components/LevelUpModal';
 import StreakIndicator from './components/StreakIndicator';
-import CosmeticsLocker from './components/CosmeticsLocker';
-import UnlockCelebrationModal from './components/UnlockCelebrationModal';
+
+const LevelUpModal = lazy(() => import('./components/LevelUpModal'));
+const CosmeticsLocker = lazy(() => import('./components/CosmeticsLocker'));
+const UnlockCelebrationModal = lazy(() => import('./components/UnlockCelebrationModal'));
+const PoseGuideModal = lazy(() => import('./components/PoseGuideModal'));
 import { eventBus, Events } from './events/eventBus';
 import { initPoseLandmarker, detectPose, isReady } from './utils/poseDetection';
 import {
@@ -41,7 +43,6 @@ import type { FormStatus, GuidanceExercise } from './types/formAnalyzer';
 import { FAULT_SEVERITY } from './types/formAnalyzer';
 import { unlockAudioCoach, playCoachSound } from './utils/audioCoach';
 import FormFeedbackOverlay from './components/FormFeedbackOverlay';
-import PoseGuideModal from './components/PoseGuideModal';
 import OrientationPrompt from './components/OrientationPrompt';
 import {
   IconCoins,
@@ -1474,22 +1475,31 @@ function App() {
         </button>
       )}
 
-      {/* Visual Exercise Guide Modal (step-by-step 3D illustrations) */}
-      <PoseGuideModal
-        exercise={exerciseType === 'pullups' ? 'pullups' : 'pushups'}
-        open={showPoseGuide}
-        onClose={() => setShowPoseGuide(false)}
-        onStartSet={doStartWorkout}
-      />
+      {/* Dynamic Lazy Loaded Modals & Overlays */}
+      <Suspense fallback={null}>
+        {/* Visual Exercise Guide Modal (step-by-step 3D illustrations) */}
+        {showPoseGuide && (
+          <PoseGuideModal
+            exercise={exerciseType === 'pullups' ? 'pullups' : 'pushups'}
+            open={showPoseGuide}
+            onClose={() => setShowPoseGuide(false)}
+            onStartSet={doStartWorkout}
+          />
+        )}
 
-      {/* Level-Up Celebration Sequence */}
-      <LevelUpModal data={prog.levelUp} onClose={prog.dismissLevelUp} />
+        {/* Level-Up Celebration Sequence */}
+        {prog.levelUp && (
+          <LevelUpModal data={prog.levelUp} onClose={prog.dismissLevelUp} />
+        )}
 
-      {/* Cosmetic unlock celebrations (queued, rarity-coded) */}
-      <UnlockCelebrationModal />
+        {/* Cosmetic unlock celebrations (queued, rarity-coded) */}
+        <UnlockCelebrationModal />
 
-      {/* Cosmetic Locker - inventory & equip flow */}
-      <CosmeticsLocker open={lockerOpen} onClose={() => setLockerOpen(false)} />
+        {/* Cosmetic Locker - inventory & equip flow */}
+        {lockerOpen && (
+          <CosmeticsLocker open={lockerOpen} onClose={() => setLockerOpen(false)} />
+        )}
+      </Suspense>
     </div>
   );
 }
