@@ -70,11 +70,19 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
+    minify: 'esbuild',
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          three: ['three'],
-          react: ['react', 'react-dom'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('three')) return 'vendor-three';
+            if (id.includes('@mediapipe')) return 'vendor-mediapipe';
+            if (id.includes('framer-motion')) return 'vendor-framer-motion';
+            if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) return 'vendor-react';
+            return 'vendor-core';
+          }
         },
       },
     },
