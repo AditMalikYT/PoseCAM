@@ -247,11 +247,22 @@ export async function setupThreeScene(): Promise<ThreeSceneSetup> {
     }
   };
 
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
+  // Resize the renderer/camera to the AR container's ACTUAL box (which tracks
+  // the dynamic viewport via dvh) so orientation changes and safe-area shifts
+  // never leave the 3D canvas misaligned with the camera feed.
+  const updateProjectionSize = () => {
+    const cw = container?.clientWidth || window.innerWidth;
+    const ch = container?.clientHeight || window.innerHeight;
+    if (!cw || !ch) return;
+    camera.aspect = cw / ch;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
+    renderer.setSize(cw, ch);
+  };
+
+  window.addEventListener('resize', updateProjectionSize);
+  // iOS can delay the layout a beat after a rotation - re-measure shortly after.
+  window.addEventListener('orientationchange', () => setTimeout(updateProjectionSize, 160));
+  updateProjectionSize();
 
   return {
     scene,

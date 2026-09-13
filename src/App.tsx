@@ -40,9 +40,9 @@ import { FormAnalyzer } from './utils/FormAnalyzer';
 import type { FormStatus, GuidanceExercise } from './types/formAnalyzer';
 import { FAULT_SEVERITY } from './types/formAnalyzer';
 import { unlockAudioCoach, playCoachSound } from './utils/audioCoach';
-import SetupGuideOverlay from './components/SetupGuideOverlay';
 import FormFeedbackOverlay from './components/FormFeedbackOverlay';
 import PoseGuideModal from './components/PoseGuideModal';
+import OrientationPrompt from './components/OrientationPrompt';
 import {
   IconCoins,
   IconBolt,
@@ -204,7 +204,7 @@ function App() {
     );
   }, [equippedItems, cosmeticsList]);
 
-  // Equipped cosmetics resolved for HUD accent + locker chips
+  // Equipped cosmetics resolved for the HUD avatar accent + XP bar gradient
   const eqAvatar = useMemo(
     () => cosmeticsList.find((c) => c.id === equippedItems.avatar) ?? null,
     [cosmeticsList, equippedItems.avatar]
@@ -212,10 +212,6 @@ function App() {
   const eqAura = useMemo(
     () => cosmeticsList.find((c) => c.id === equippedItems.aura) ?? null,
     [cosmeticsList, equippedItems.aura]
-  );
-  const eqAcc = useMemo(
-    () => cosmeticsList.find((c) => c.id === equippedItems.accessory) ?? null,
-    [cosmeticsList, equippedItems.accessory]
   );
 
   // Sonar cues: level-up chime + streak-bonus blip
@@ -945,98 +941,13 @@ function App() {
       <div className="video-container">
         <video ref={videoRef} playsInline muted className="video-feed" />
         <canvas ref={canvasRef} width={640} height={480} className="pose-canvas" />
-
-        {/* Onboarding & Camera Placement Guide (AR bounding zone + warnings) */}
-        {isFormGuidanceEnabled && (
-          <SetupGuideOverlay
-            exercise={exerciseType === 'pullups' ? 'pullups' : 'pushups'}
-            setup={formUi?.setup ?? null}
-            full={!isExerciseActive}
-          />
-        )}
       </div>
 
       {/* 3D / AR Three.js Canvas Container */}
       <div id="ar-container" />
 
-      {/* Debug Terminal Toggle */}
-      <button
-        className={`debug-terminal-toggle ${isDebugMode ? 'active' : ''}`}
-        onClick={() => setIsDebugMode(!isDebugMode)}
-        title="Toggle Debug Terminal"
-        aria-label="Toggle Debug Terminal"
-      >
-        <IconBug width={20} height={20} />
-      </button>
-
-      {/* Debug Terminal Drawer */}
-      {isDebugMode && (
-        <div className="debug-terminal open">
-          <div className="debug-terminal-header">
-            <span className="debug-terminal-title">Debug Terminal</span>
-            <button className="debug-terminal-close" onClick={() => setIsDebugMode(false)}>✕</button>
-          </div>
-          <div className="debug-terminal-body">
-            <div className="debug-section">
-              <div className="debug-section-title">Tracking Status</div>
-              <div className="debug-grid">
-                <div className="debug-item">
-                  <span className="debug-label">Status</span>
-                  <span className="debug-badge active">Active</span>
-                </div>
-                <div className="debug-item">
-                  <span className="debug-label">Confidence</span>
-                  <span className="debug-value good">95%</span>
-                </div>
-              </div>
-            </div>
-            <div className="debug-section">
-              <div className="debug-section-title">Session Data</div>
-              <div className="debug-grid">
-                <div className="debug-item">
-                  <span className="debug-label">Reps</span>
-                  <span className="debug-value highlight">{session.repCount}</span>
-                </div>
-                <div className="debug-item">
-                  <span className="debug-label">Phase</span>
-                  <span className="debug-value">{currentPhase}</span>
-                </div>
-                <div className="debug-item">
-                  <span className="debug-label">Form Score</span>
-                  <span className="debug-value good">{session.currentFormScore}%</span>
-                </div>
-                <div className="debug-item">
-                  <span className="debug-label">XP Earned</span>
-                  <span className="debug-value">{session.sessionXp}</span>
-                </div>
-              </div>
-            </div>
-            <div className="debug-section">
-              <div className="debug-section-title">System</div>
-              <div className="debug-grid">
-                <div className="debug-item full-width">
-                  <span className="debug-label">Exercise</span>
-                  <span className="debug-value">{exerciseType}</span>
-                </div>
-                <div className="debug-item">
-                  <span className="debug-label">WebXR</span>
-                  <span className={`debug-badge ${xrSupported ? 'active' : 'inactive'}`}>
-                    {xrSupported ? 'AR Ready' : '2D Mode'}
-                  </span>
-                </div>
-                <div className="debug-item">
-                  <span className="debug-label">Camera</span>
-                  <span className="debug-value">{cameraFacingMode}</span>
-                </div>
-                <div className="debug-item full-width">
-                  <span className="debug-label">Duration</span>
-                  <span className="debug-value">{Math.floor(session.duration)}s</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Rotate-device prompt (show whenever portrait push-up setup is detected) */}
+      <OrientationPrompt exercise={exerciseType} active={isExerciseActive} />
 
       {/* Glassmorphic Cyber-HUD */}
       <div className="hud">
@@ -1066,33 +977,6 @@ function App() {
                 <span>{player.currentXp} / {player.xpToNextLevel}</span>
               </div>
             </div>
-            {/* Equipped cosmetics (HUD reads the avatar/aura/accessory accent) */}
-            <div className="equipped-chip">
-              {(eqAvatar || eqAura || eqAcc) ? (
-                <>
-                  {eqAvatar && (
-                    <span className="equipped-chip-item" style={{ color: eqAvatar.avatarColor }}>
-                      <span className="equipped-chip-dot" style={{ background: eqAvatar.avatarColor, boxShadow: `0 0 8px ${eqAvatar.avatarColor}` }} />
-                      {eqAvatar.name}
-                    </span>
-                  )}
-                  {eqAura && (
-                    <span className="equipped-chip-item" style={{ color: eqAura.aura?.color }}>
-                      <span className="equipped-chip-dot" style={{ background: eqAura.aura?.color, boxShadow: `0 0 8px ${eqAura.aura?.color}` }} />
-                      {eqAura.name}
-                    </span>
-                  )}
-                  {eqAcc && (
-                    <span className="equipped-chip-item" style={{ color: eqAcc.accessory?.color }}>
-                      <span className="equipped-chip-dot" style={{ background: eqAcc.accessory?.color, boxShadow: `0 0 8px ${eqAcc.accessory?.color}` }} />
-                      {eqAcc.name}
-                    </span>
-                  )}
-                </>
-              ) : (
-                <span className="equipped-chip-empty">Open Locker to customise</span>
-              )}
-            </div>
           </div>
 
           {/* Resource Bar - luxury pills */}
@@ -1116,6 +1000,12 @@ function App() {
               <span>{player.stats.endurance}</span>
             </div>
           </div>
+
+          {/* Streak XP multiplier (flame pill + tier tooltip) */}
+          <StreakIndicator
+            streak={prog.streak}
+            pulseToken={prog.streakBonusPulse}
+          />
 
           {/* Top-Right Quick Actions */}
           <div className="quick-actions">
@@ -1142,12 +1032,6 @@ function App() {
             </button>
           </div>
         </div>
-
-        {/* Streak XP Multiplier Indicator (flame pill + tier tooltip) */}
-        <StreakIndicator
-          streak={prog.streak}
-          pulseToken={prog.streakBonusPulse}
-        />
 
         {/* Rep Counter - Cyber HUD Ring (depth / form / rep-burst arcs) */}
         {isExerciseActive && (() => {
@@ -1374,12 +1258,6 @@ function App() {
           onClick={() => setExerciseType('pullups')}
         >
           Pull-Ups
-        </button>
-        <button
-          className={`exercise-btn debug-toggle-btn ${isDebugMode ? 'active' : ''}`}
-          onClick={() => setIsDebugMode(!isDebugMode)}
-        >
-          <IconBug className="btn-icon" width={16} height={16} /> Debug Mode
         </button>
         <button
           className={`exercise-btn pose-corrector-btn ${isPoseCorrectorEnabled ? 'active' : ''}`}

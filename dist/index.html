@@ -2,12 +2,29 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+
+    <!-- ======================= PWA Manifest ======================= -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#00F0FF" />
+    <meta name="description" content="AR Calisthenics Gamification App - Turn your workouts into an RPG adventure" />
+
+    <!-- ======================= Mobile viewport (non-scalable, full-bleed) ======================= -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="AR Calisthenics" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- ======================= iOS Web App capabilities ======================= -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#0a0a1a" />
-    <meta name="description" content="AR Calisthenics Gamification App - Turn your workouts into an RPG adventure" />
+    <meta name="apple-mobile-web-app-title" content="AR Calisthenics" />
+
+    <!-- ======================= Icons ======================= -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -15,11 +32,11 @@
       rel="stylesheet"
     />
     <title>ArGym - AR Calisthenics RPG</title>
-    <script type="module" crossorigin src="/assets/index-C7zJitKC.js"></script>
+    <script type="module" crossorigin src="/assets/index-Dzb50nC0.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/react-DsceW-4w.js">
     <link rel="modulepreload" crossorigin href="/assets/three-CXn0zr97.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-BnboZtv6.css">
-  </head>
+    <link rel="stylesheet" crossorigin href="/assets/index-d8Ghizrf.css">
+  <script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
   <body>
     <div id="root"></div>
     <div id="ar-container"></div>
