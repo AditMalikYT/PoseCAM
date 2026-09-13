@@ -1725,7 +1725,12 @@ body {
 }
 
 /* =====================================================================
-   COSMETIC LOCKER
+   COSMETIC LOCKER — mobile-first full-bleed sheet + responsive card grid
+   Mobile (portrait): MAX width capped but sheet fills 100dvh (URL-bar
+   safe), safe-area inset padding clears notches / home indicators, and
+   the item grid is the ONLY scroll region (overscroll contained so touch
+   gestures never drag the parent page). ≥640px: floating centered panel
+   with a 3-column grid.
 ===================================================================== */
 .locker-backdrop {
   position: fixed;
@@ -1736,44 +1741,66 @@ body {
   background: rgba(6, 7, 10, 0.55);
   backdrop-filter: blur(7px);
   -webkit-backdrop-filter: blur(7px);
+  overscroll-behavior: contain;
 }
 .locker-panel {
-  position: relative;
-  width: min(660px, 94vw);
-  max-height: 92vh;
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  width: 95vw;
+  max-width: 42rem; /* Tailwind max-w-2xl */
+  height: 90dvh; /* fixed viewport bounds — fits on phone screens */
+  max-height: 650px;
+  margin: auto; /* centers the bounded card within the viewport */
   display: flex;
   flex-direction: column;
-  padding: 1.15rem 1.25rem 1.05rem;
-  border-radius: 26px;
-  background: linear-gradient(165deg, rgba(18, 21, 32, 0.9), rgba(9, 10, 14, 0.94));
+  isolation: isolate;
+  border-radius: 18px;
+  background: linear-gradient(165deg, rgba(18, 21, 32, 0.96), rgba(9, 10, 14, 0.97));
   backdrop-filter: blur(26px) saturate(1.5);
   -webkit-backdrop-filter: blur(26px) saturate(1.5);
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-top-color: rgba(255, 255, 255, 0.25);
   box-shadow: var(--glass-shadow), var(--glass-inset), 0 0 70px rgba(0, 240, 255, 0.06);
   overflow: hidden;
+  touch-action: manipulation;
+  /* Safe-area insets (camera notches / home indicator). Fallback values
+     first, then env()-enhanced where supported (iOS Safari 26.1+ /
+     Chrome 134+). */
+  padding: 0.9rem 1rem 0.85rem 1rem;
+  padding:
+    calc(0.9rem + env(safe-area-inset-top, 0px))
+    calc(1rem + env(safe-area-inset-right, 0px))
+    calc(0.85rem + env(safe-area-inset-bottom, 0px))
+    calc(1rem + env(safe-area-inset-left, 0px));
 }
 .locker-header {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.75rem;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
 }
 .locker-title {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   font-family: var(--font-display);
-  font-size: 0.98rem;
+  font-size: 0.92rem;
   font-weight: 900;
-  letter-spacing: 2.5px;
+  letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--energy-cyan);
   text-shadow: 0 0 18px rgba(0, 240, 255, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 .locker-close {
-  width: 34px;
-  height: 34px;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.05);
@@ -1782,27 +1809,39 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  touch-action: manipulation;
   transition: all 0.25s ease;
 }
 .locker-close:hover { color: var(--crimson); border-color: var(--crimson); }
-.locker-tabs { display: flex; gap: 0.5rem; margin-bottom: 0.85rem; }
+.locker-tabs {
+  flex: 0 0 auto; /* shrink-0 — sticky header stays fixed while grid scrolls */
+  position: sticky; /* pinned while only the grid scrolls */
+  top: 0;
+  z-index: 3;
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem; /* mb-3 */
+}
 .locker-tab {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   flex: 1;
   justify-content: center;
-  padding: 0.55rem 0.6rem;
-  border-radius: 14px;
+  min-width: 44px; /* WCAG 44×44 touch target */
+  min-height: 44px;
+  padding: 0.5rem 0.4rem;
+  border-radius: 12px;
   font-family: var(--font-tech);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 800;
-  letter-spacing: 1.5px;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
   color: var(--text-muted);
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
+  touch-action: manipulation;
   transition: all 0.25s ease;
 }
 .locker-tab.active {
@@ -1817,31 +1856,28 @@ body {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
 }
-.cosmetic-preview-canvas {
-  width: 100%;
-  height: 150px;
-  border-radius: 18px;
-  margin-bottom: 0.85rem;
+.cosmetic-preview-canvas,
+.avatar-preview {
+  flex: 0 0 auto; /* shrink-0 — never crowds the grid */
+  height: 112px; /* h-28 mobile */
+  margin-bottom: 0.75rem; /* mb-3 */
+  border-radius: 16px;
   background: radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.25));
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 .avatar-preview {
   position: relative;
   width: 100%;
-  height: 150px;
-  margin-bottom: 0.85rem;
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-radius: 18px;
   background: radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.28));
-  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 .avatar-preview-img {
-  width: 150px;
-  height: 150px;
-  max-width: 92%;
-  max-height: 136px;
+  width: 80px;
+  height: 80px;
+  max-width: 76%;
+  max-height: 80px; /* max-h-20 mobile */
   object-fit: contain;
   filter: drop-shadow(0 0 18px var(--rarity-glow)) drop-shadow(0 6px 22px rgba(0, 0, 0, 0.5));
   animation: avatar-preview-breathe 3.2s ease-in-out infinite;
@@ -1867,10 +1903,10 @@ body {
   white-space: nowrap;
 }
 .cosmetic-thumb-img {
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   object-fit: contain;
-  border-radius: 11px;
+  border-radius: 9px;
   filter: drop-shadow(0 0 7px var(--rarity-glow)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
   animation: orb-breathe 3s ease-in-out infinite;
 }
@@ -1880,30 +1916,43 @@ body {
   filter: grayscale(0.85) drop-shadow(0 0 5px rgba(0, 0, 0, 0.4));
 }
 .locker-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 0.7rem;
+  flex: 1 1 auto; /* flex-1 — fills all remaining vertical space */
+  min-height: 0; /* allows shrinking below content height so it scrolls */
+  display: block;
   overflow-y: auto;
-  padding-right: 2px;
-  max-height: 46vh;
+  overflow-x: hidden;
+  overscroll-behavior: contain; /* no background-page drag-through */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  padding: 0.1rem 0.15rem 0.3rem;
 }
-.locker-grid::-webkit-scrollbar { width: 6px; }
-.locker-grid::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.3); border-radius: 3px; }
+.locker-grid-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* 2 cols on mobile */
+  gap: 0.5rem; /* gap-2 */
+  align-content: start;
+}
+.custom-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(0, 240, 255, 0.35) transparent; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.35); border-radius: 3px; }
 
 .cosmetic-card {
   --rarity-color: #aeb6c4;
   --rarity-glow: rgba(174, 182, 196, 0.5);
   position: relative;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  padding: 0.8rem;
-  border-radius: 18px;
+  gap: 0.4rem;
+  padding: 0.58rem 0.5rem;
+  border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--rarity-color) 45%, rgba(255, 255, 255, 0.08));
   background: linear-gradient(165deg, color-mix(in srgb, var(--rarity-color) 6%, rgba(18, 21, 32, 0.7)), rgba(9, 10, 14, 0.8));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 18px color-mix(in srgb, var(--rarity-glow) 30%, transparent);
   overflow: hidden;
   cursor: pointer;
+  touch-action: manipulation;
   transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 .cosmetic-card:hover { outline: none; }
@@ -1923,16 +1972,16 @@ body {
 
 .cosmetic-card-orb-ring {
   position: relative;
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
   border-radius: 50%;
   display: grid;
   place-items: center;
 }
 .cosmetic-orb {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   animation: orb-breathe 3s ease-in-out infinite;
 }
@@ -1945,28 +1994,28 @@ body {
   box-shadow: 0 0 18px var(--rarity-glow);
   opacity: 0.6;
 }
-.cosmetic-card-info { display: flex; flex-direction: column; gap: 0.18rem; min-width: 0; }
+.cosmetic-card-info { display: flex; flex-direction: column; gap: 0.16rem; min-width: 0; }
 .cosmetic-name {
   font-family: var(--font-display);
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 800;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.cosmetic-rarity { font-family: var(--font-tech); font-size: 0.6rem; font-weight: 800; letter-spacing: 1.5px; color: var(--rarity-color); }
+.cosmetic-rarity { font-family: var(--font-tech); font-size: 0.54rem; font-weight: 800; letter-spacing: 1.3px; color: var(--rarity-color); }
 .cosmetic-desc {
-  font-size: 0.66rem;
-  line-height: 1.4;
+  font-size: 0.6rem;
+  line-height: 1.35;
   color: var(--text-muted);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.cosmetic-card-foot { margin-top: auto; padding-top: 0.15rem; }
+.cosmetic-card-foot { margin-top: auto; padding-top: 0.1rem; }
 .equipped-tag {
   display: inline-flex;
   align-items: center;
@@ -1980,16 +2029,18 @@ body {
 }
 .btn-equip {
   width: 100%;
-  padding: 0.4rem 0.5rem;
+  min-height: 44px;
+  padding: 0.5rem 0.5rem;
   border-radius: 10px;
   border: 1px solid color-mix(in srgb, var(--rarity-color) 55%, transparent);
   background: color-mix(in srgb, var(--rarity-color) 14%, rgba(255, 255, 255, 0.03));
   color: var(--rarity-color);
   font-family: var(--font-tech);
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 800;
-  letter-spacing: 2px;
+  letter-spacing: 1.8px;
   cursor: pointer;
+  touch-action: manipulation;
   transition: all 0.25s ease;
 }
 .btn-equip:hover { background: color-mix(in srgb, var(--rarity-color) 26%, transparent); box-shadow: 0 0 18px color-mix(in srgb, var(--rarity-glow) 55%, transparent); }
@@ -1998,35 +2049,96 @@ body {
   align-items: center;
   gap: 0.35rem;
   font-family: var(--font-tech);
-  font-size: 0.6rem;
+  font-size: 0.56rem;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
   text-transform: uppercase;
   color: var(--text-muted);
   line-height: 1.35;
+  white-space: normal;
 }
 .locker-footer {
+  flex: 0 0 auto; /* shrink-0 — pinned to the base; only the grid scrolls */
+  position: sticky; /* pinned to the base; only the grid scrolls */
+  bottom: 0;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.6rem;
-  margin-top: 0.75rem;
-  padding-top: 0.65rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem; /* mt-2 */
+  padding-top: 0.5rem; /* pt-2 */
+  padding-bottom: 0.3rem;
+  border-top: 1px solid rgba(30, 41, 59, 1); /* border-slate-800 */
+  /* keep clear of the home indicator on iOS */
+  padding-bottom: calc(0.3rem + env(safe-area-inset-bottom, 0px));
 }
 .locker-locked-toggle {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-height: 44px; /* 44×44 touch target */
   gap: 0.4rem;
+  padding: 0 0.35rem;
   font-family: var(--font-tech);
-  font-size: 0.64rem;
+  font-size: 0.62rem;
   font-weight: 700;
   text-transform: uppercase;
   color: var(--text-muted);
   cursor: pointer;
+  touch-action: manipulation;
 }
 .locker-locked-toggle input { accent-color: var(--energy-cyan); }
-.locker-hint { font-family: var(--font-tech); font-size: 0.6rem; color: var(--text-muted); letter-spacing: 0.5px; }
+.locker-hint { font-family: var(--font-tech); font-size: 0.58rem; color: var(--text-muted); letter-spacing: 0.4px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------------- ≥640px: tablet / desktop / landscape phones --------------
+   Tailwind `sm:`-equivalent breakpoint. Restores the floating centered
+   dialog (min(680px,94vw)), the taller 192px preview and the 3-col grid. */
+@media (min-width: 640px) {
+  .locker-panel {
+    border-radius: 26px;
+    padding: 1.15rem 1.25rem 1.05rem;
+  }
+  .locker-header { margin-bottom: 0.75rem; }
+  .locker-title { font-size: 0.98rem; letter-spacing: 2.5px; }
+  .locker-tabs { gap: 0.5rem; margin-bottom: 0.75rem; }
+  .locker-tab { padding: 0.55rem 0.6rem; border-radius: 14px; font-size: 0.72rem; letter-spacing: 1.5px; }
+  .cosmetic-preview-canvas,
+  .avatar-preview {
+    height: 160px; /* sm:h-40 */
+    margin-bottom: 0.85rem;
+    border-radius: 18px;
+  }
+  .avatar-preview-img {
+    width: 112px;
+    height: 112px;
+    max-width: 92%;
+    max-height: 112px; /* sm:max-h-28 */
+  }
+  .locker-grid {
+    flex: 1 1 auto;
+    padding: 0.1rem 0.15rem 0.3rem;
+    padding-right: 2px;
+  }
+  .locker-grid-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr)); /* 3 cols on tablet/desktop */
+    gap: 0.75rem; /* gap-3 */
+  }
+  .cosmetic-card { gap: 0.55rem; padding: 0.8rem; border-radius: 18px; }
+  .cosmetic-card-orb-ring { width: 46px; height: 46px; }
+  .cosmetic-orb { width: 40px; height: 40px; }
+  .cosmetic-thumb-img { width: 42px; height: 42px; border-radius: 11px; }
+  .cosmetic-card-info { gap: 0.18rem; }
+  .cosmetic-name { font-size: 0.8rem; letter-spacing: 1px; }
+  .cosmetic-rarity { font-size: 0.6rem; letter-spacing: 1.5px; }
+  .cosmetic-desc { font-size: 0.66rem; line-height: 1.4; }
+  .btn-equip { min-height: 44px; font-size: 0.68rem; letter-spacing: 2px; }
+  .unlock-req { font-size: 0.6rem; letter-spacing: 0.5px; }
+  .locker-footer { gap: 0.6rem; margin-top: 0.5rem; padding-top: 0.5rem; padding-bottom: 0; }
+  .locker-locked-toggle { font-size: 0.64rem; }
+  .locker-hint { font-size: 0.6rem; }
+}
 
 /* =====================================================================
    COSMETIC UNLOCK CELEBRATION

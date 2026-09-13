@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../state/playerStore';
-import { RARITY_TIERS, CATEGORY_LABELS, CATEGORY_ORDER, unlockRequirementText } from '../types/cosmetics';
+import { RARITY_TIERS, CATEGORY_LABELS, CATEGORY_ORDER, unlockRequirementText, cosmeticImageUrl } from '../types/cosmetics';
 import type { CosmeticItem, ItemCategory, RarityTier } from '../types/cosmetics';
 import { playCoachSound } from '../utils/audioCoach';
 import { IconX, IconShirt, IconSparkle, IconBag, IconLock, IconCheck } from './icons';
@@ -9,9 +9,9 @@ import { IconX, IconShirt, IconSparkle, IconBag, IconLock, IconCheck } from './i
 /* ============================================================================
    CosmeticsLocker — glassmorphic inventory modal.
    Category tabs (Avatars / Auras / Accessories), rarity border glows,
-   lock/unlock status, EQUIP actions and an animated preview. Avatar items
-   render lightweight 2D PNG sprites (see data/cosmeticsData.json); auras and
-   accessories keep the glowing particle-field canvas.
+   lock/unlock status, EQUIP actions and an animated preview. Avatar and
+   accessory items render lightweight 2D PNG sprites (see data/cosmeticsData.json
+   + data/accessoriesData.json); auras keep the glowing particle-field canvas.
 ============================================================================ */
 
 interface Props {
@@ -70,15 +70,18 @@ export default function CosmeticsLocker({ open, onClose }: Props) {
               </button>
             </header>
 
-            {/* Category tabs */}
-            <div className="locker-tabs">
+            {/* Category tabs (44px min touch targets, sticky under only-scrolling grid) */}
+            <div className="locker-tabs" role="tablist" aria-label="Cosmetic categories">
               {CATEGORY_ORDER.map((cat) => {
                 const count = cosmetics.filter((c) => c.category === cat && c.unlocked).length;
                 const Icon = cat === 'avatar' ? IconShirt : cat === 'aura' ? IconSparkle : IconBag;
+                const isActive = tab === cat;
                 return (
                   <button
                     key={cat}
-                    className={`locker-tab ${tab === cat ? 'active' : ''}`}
+                    role="tab"
+                    aria-selected={isActive}
+                    className={`locker-tab ${isActive ? 'active' : ''}`}
                     onClick={() => setTab(cat)}
                   >
                     <Icon width={15} height={15} />
@@ -92,22 +95,26 @@ export default function CosmeticsLocker({ open, onClose }: Props) {
             {/* Animated item preview */}
             <CosmeticPreview item={previewItem} />
 
-            {/* Item grid */}
-            <div className="locker-grid">
-              {activeItems.map((item) => (
-                <CosmeticCard
-                  key={item.id}
-                  item={item}
-                  isEquipped={equipped[item.category] === item.id}
-                  showLocked={showLocked}
-                  onHover={() => setPreviewId(item.id)}
-                  onEquip={() => {
-                    playCoachSound('cosmeticEquip');
-                    equipCosmetic(item.id);
-                    setPreviewId(item.id);
-                  }}
-                />
-              ))}
+            {/* Item grid wrapper — flex-1 min-h-0 scroll region; the ONLY
+                scrolling area. The inner list holds the responsive grid.
+                key={tab} resets scroll position on category switch. */}
+            <div className="locker-grid custom-scrollbar pr-1" key={tab}>
+              <div className="locker-grid-list">
+                {activeItems.map((item) => (
+                  <CosmeticCard
+                    key={item.id}
+                    item={item}
+                    isEquipped={equipped[item.category] === item.id}
+                    showLocked={showLocked}
+                    onHover={() => setPreviewId(item.id)}
+                    onEquip={() => {
+                      playCoachSound('cosmeticEquip');
+                      equipCosmetic(item.id);
+                      setPreviewId(item.id);
+                    }}
+                  />
+                ))}
+              </div>
             </div>
 
             <footer className="locker-footer">
@@ -189,25 +196,28 @@ function CosmeticCard({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Preview — 2D sprite for avatars, particle field for auras / accessories     */
+/* Preview — 2D sprite for avatars / accessories, particle field for auras     */
 /* -------------------------------------------------------------------------- */
 function CosmeticPreview({ item }: { item: CosmeticItem | undefined }) {
   const [imgFailed, setImgFailed] = useState(false);
 
   useEffect(() => setImgFailed(false), [item?.id]);
 
-  if (item?.imageUrl && !imgFailed) {
-    const rarity = RARITY_TIERS[item.rarity];
+  const spriteUrl = cosmeticImageUrl(item);
+
+  if (spriteUrl && !imgFailed) {
+    const rarity = RARITY_TIERS[item!.rarity];
     return (
-      <div className="avatar-preview" key={item.id}>
+      <div className="avatar-preview" key={item!.id}>
         <img
           className="avatar-preview-img"
-          src={item.imageUrl}
-          alt={item.name}
+          src={spriteUrl}
+          alt={item!.name}
+          loading="lazy"
           style={{ '--rarity-glow': rarity.glow } as React.CSSProperties}
           onError={() => setImgFailed(true)}
         />
-        <span className="avatar-preview-chip">{item.name} · {rarity.label}</span>
+        <span className="avatar-preview-chip">{item!.name} · {rarity.label}</span>
       </div>
     );
   }
@@ -331,12 +341,16 @@ function CardArt({ item }: { item: CosmeticItem }) {
 
   useEffect(() => setFailed(false), [item.id]);
 
-  if (item.imageUrl && !failed) {
+  const spriteUrl = cosmeticImageUrl(item);
+
+  if (spriteUrl && !failed) {
     return (
       <img
         className="cosmetic-thumb-img"
-        src={item.imageUrl}
+        src={spriteUrl}
         alt={item.name}
+        loading="lazy"
+        draggable={false}
         onError={() => setFailed(true)}
       />
     );
@@ -350,6 +364,7 @@ function CardArt({ item }: { item: CosmeticItem }) {
         background: `radial-gradient(circle at 32% 28%, #ffffff55, ${accent})`,
         boxShadow: `0 0 22px ${RARITY_TIERS[item.rarity].glow}`,
       }}
+      title={item.name}
     />
   );
 }

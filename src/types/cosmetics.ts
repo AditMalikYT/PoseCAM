@@ -197,6 +197,31 @@ export function outranks(a: RarityTier, b: RarityTier): boolean {
 }
 
 /* ----------------------------------------------------------------------------
+   Sprite URL resolution
+   ----------------------------------------------------------------------------
+   Avatar + accessory rosters ship lightweight 2D PNG sprites in `public/assets/`
+   named after their item id (e.g. `/assets/accessories/ac-titan-wraps.png`).
+   Persisted inventory from older saves may be missing the `imageUrl` field, so
+   we resolve the sprite path lazily from the category + id convention. This keeps
+   every locker card / preview 2D even when localStorage predates the sprite schema.
+---------------------------------------------------------------------------- */
+export interface HasSpriteUrl {
+  id: string;
+  category: ItemCategory;
+  imageUrl?: string;
+}
+
+/** Resolve the 2D sprite URL for an avatar/accessory item (fallback to derived public/ path). */
+export function cosmeticImageUrl(item: HasSpriteUrl | undefined): string | undefined {
+  if (!item) return undefined;
+  const url = typeof item.imageUrl === 'string' ? item.imageUrl.trim() : '';
+  if (url) return url;
+  if (item.category === 'avatar') return `/assets/avatars/${item.id}.png`;
+  if (item.category === 'accessory') return `/assets/accessories/${item.id}.png`;
+  return undefined;
+}
+
+/* ----------------------------------------------------------------------------
    Default roster — seeded on first run (every new save starts with these).
    `unlocked`/`equipped` are lifecycle flags set by the inventory store.
 

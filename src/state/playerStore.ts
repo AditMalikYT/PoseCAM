@@ -250,16 +250,23 @@ export const usePlayerStore = create<PlayerStore>()(
     }),
     {
       name: 'argym-player-store',
-      version: 3,
+      // v4: force-migrates saves that predate accessory `imageUrl` sprites
+      // (the v3→v4 migration re-seeds when avatar/accessory items are missing
+      // their sprite URLs). zustand only runs `migrate` on a version mismatch,
+      // so the bump is what makes the reseed condition below take effect.
+      version: 4,
       migrate: (persisted, _version) => {
         const state = (persisted ?? {}) as Partial<PlayerStore>;
         const stored = Array.isArray(state.cosmetics) ? (state.cosmetics as CosmeticItem[]) : [];
         // Reseed on schema changes: v1 predates the category schema, and v2
-        // predates the 2D `imageUrl` avatar roster (v3).
+        // predates the 2D `imageUrl` roster (v3). Also re-seed if the stored
+        // avatar/accessory items are missing their sprite URLs, since those
+        // were added in the accessory schema.
         const needsReseed =
           !Array.isArray(state.cosmetics) ||
           stored.some(isLegacyInventoryItem) ||
-          !stored.some((c) => c.category === 'avatar' && typeof c.imageUrl === 'string');
+          !stored.some((c) => c.category === 'avatar' && typeof c.imageUrl === 'string') ||
+          !stored.some((c) => c.category === 'accessory' && typeof c.imageUrl === 'string');
         const cosmetics = needsReseed ? seed.items : stored;
         const equipped: Record<ItemCategory, string | null> = needsReseed
           ? seed.equipped
