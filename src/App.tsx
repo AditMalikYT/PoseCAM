@@ -952,11 +952,16 @@ function App() {
       {/* Glassmorphic Cyber-HUD */}
       <div className="hud">
         <div className="hud-top">
-          {/* Character Card (equipped avatar accent via --avatar-accent) */}
+          {/* Character Card (equipped avatar accent + 2D sprite via --avatar-accent) */}
           <div
             className="character-card"
             style={{ '--avatar-accent': eqAvatar?.avatarColor ?? '#00f0ff' } as React.CSSProperties}
           >
+            {eqAvatar?.imageUrl && (
+              <div className="character-card-avatar">
+                <img src={eqAvatar.imageUrl} alt={eqAvatar.name} />
+              </div>
+            )}
             <div className="level-display">
               <span className="level-number">Lv.{player.currentLevel}</span>
             </div>

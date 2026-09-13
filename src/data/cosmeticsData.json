@@ -1,0 +1,42 @@
+[
+  {
+    "id": "starter_core",
+    "name": "Starter Core",
+    "category": "AVATARS",
+    "rarity": "COMMON",
+    "description": "Standard high-contrast silhouette avatar for baseline training.",
+    "imageUrl": "/assets/avatars/starter_core.png",
+    "unlocked": true,
+    "unlockRequirement": "Unlocked by default"
+  },
+  {
+    "id": "neon_prime",
+    "name": "Neon Prime",
+    "category": "AVATARS",
+    "rarity": "RARE",
+    "description": "Futuristic cyberpunk cybernetic frame with electric cyan energy rings.",
+    "imageUrl": "/assets/avatars/neon_prime.png",
+    "unlocked": true,
+    "unlockRequirement": "Level 3 Unlocked"
+  },
+  {
+    "id": "phantom_vanguard",
+    "name": "Phantom Vanguard",
+    "category": "AVATARS",
+    "rarity": "EPIC",
+    "description": "Deep violet cybernetic warrior shrouded in shadowy particles.",
+    "imageUrl": "/assets/avatars/phantom_vanguard.png",
+    "unlocked": false,
+    "unlockRequirement": "500 Total Reps"
+  },
+  {
+    "id": "apex_sovereign",
+    "name": "Apex Sovereign",
+    "category": "AVATARS",
+    "rarity": "LEGENDARY",
+    "description": "Radiant amber legendary rig forged for elite calisthenics masters.",
+    "imageUrl": "/assets/avatars/apex_sovereign.png",
+    "unlocked": false,
+    "unlockRequirement": "2,000 Total Reps"
+  }
+]

@@ -250,20 +250,23 @@ export const usePlayerStore = create<PlayerStore>()(
     }),
     {
       name: 'argym-player-store',
-      version: 2,
+      version: 3,
       migrate: (persisted, _version) => {
         const state = (persisted ?? {}) as Partial<PlayerStore>;
-        // Reseed the roster when a v1 save predates the category-based schema
-        const cosmetics = Array.isArray(state.cosmetics)
-          ? (state.cosmetics as CosmeticItem[]).some(isLegacyInventoryItem)
-            ? seed.items
-            : state.cosmetics
-          : seed.items;
-        const equipped: Record<ItemCategory, string | null> =
-          state.equipped ?? { avatar: null, aura: null, accessory: null };
+        const stored = Array.isArray(state.cosmetics) ? (state.cosmetics as CosmeticItem[]) : [];
+        // Reseed on schema changes: v1 predates the category schema, and v2
+        // predates the 2D `imageUrl` avatar roster (v3).
+        const needsReseed =
+          !Array.isArray(state.cosmetics) ||
+          stored.some(isLegacyInventoryItem) ||
+          !stored.some((c) => c.category === 'avatar' && typeof c.imageUrl === 'string');
+        const cosmetics = needsReseed ? seed.items : stored;
+        const equipped: Record<ItemCategory, string | null> = needsReseed
+          ? seed.equipped
+          : (state.equipped ?? { avatar: null, aura: null, accessory: null });
         const migrated = {
           ...state,
-          cosmetics: cosmetics as CosmeticItem[],
+          cosmetics,
           equipped,
           pendingUnlocks: [],
         };

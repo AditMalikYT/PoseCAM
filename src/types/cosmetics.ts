@@ -6,6 +6,7 @@
    decoupled from exercise tracking (playerStore lives in state/).
 ============================================================================ */
 import type { PlayerProgression, StreakData } from './player';
+import avatarRosterData from '../data/cosmeticsData.json';
 
 /* ----------------------------------------------------------------------------
    Rarity tiers
@@ -127,6 +128,10 @@ export interface CosmeticItem {
   unlockRequirements: CosmeticUnlockRequirements;
   unlocked: boolean;
   equipped: boolean;
+  /** 2D sprite asset for avatars (rendered in the locker + HUD). */
+  imageUrl?: string;
+  /** Optional human-readable unlock hint carried from the dataset (locked items). */
+  unlockHint?: string;
   /** Avatar accent used by the HUD (character card ring / chip). */
   avatarColor?: string;
   aura?: AuraVisual;
@@ -193,8 +198,15 @@ export function outranks(a: RarityTier, b: RarityTier): boolean {
 /* ----------------------------------------------------------------------------
    Default roster — seeded on first run (every new save starts with these).
    `unlocked`/`equipped` are lifecycle flags set by the inventory store.
----------------------------------------------------------------------------- */
-type RosterSeed = Omit<CosmeticItem, 'unlocked' | 'equipped'>;
+
+   Avatar items live in `data/cosmeticsData.json` (lightweight 2D PNG sprites
+   tuned for low-end mobile). Auras + accessories below stay data-driven here
+   because their `aura`/`accessory` configs feed the Three.js AuraRenderer.
+--------------------------------------------------------------------------- */
+type RosterSeed = Omit<CosmeticItem, 'unlocked' | 'equipped'> & {
+  /** Initial unlock state override (defaults to "no requirements → unlocked"). */
+  startUnlocked?: boolean;
+};
 
 // MediaPipe pose landmark indices (see types/pose.ts):
 // 0 nose · 7/8 ears · 11/12 shoulders · 13/14 elbows · 15/16 wrists
@@ -203,44 +215,6 @@ export const CHEST_CENTER_JOINTS = [11, 12, 23, 24];
 export const CHEST_PLUS = [11, 12, 13, 14, 23, 24];
 
 export const DEFAULT_COSMETIC_ITEMS: RosterSeed[] = [
-  /* ---- AVATARS ---------------------------------------------------------- */
-  {
-    id: 'av-starter',
-    name: 'Starter Core',
-    category: 'avatar',
-    rarity: 'common',
-    description: 'Your base training rig. Chrome-slate plating with a warm core.',
-    unlockRequirements: {},
-    avatarColor: '#aeb6c4',
-  },
-  {
-    id: 'av-neon-prime',
-    name: 'Neon Prime',
-    category: 'avatar',
-    rarity: 'rare',
-    description: 'Electric circuit filament running down the spine.',
-    unlockRequirements: { level: 5 },
-    avatarColor: '#00e5ff',
-  },
-  {
-    id: 'av-phantom',
-    name: 'Phantom Vanguard',
-    category: 'avatar',
-    rarity: 'epic',
-    description: 'Cybernetic vanguard frame with a deep violet core.',
-    unlockRequirements: { totalReps: 500 },
-    avatarColor: '#b967ff',
-  },
-  {
-    id: 'av-sovereign',
-    name: 'Apex Sovereign',
-    category: 'avatar',
-    rarity: 'legendary',
-    description: 'The apex rig. Radiant amber keyed to your personal best.',
-    unlockRequirements: { totalReps: 2000 },
-    avatarColor: '#ffb800',
-  },
-
   /* ---- AURAS ------------------------------------------------------------ */
   {
     id: 'au-static',
@@ -329,17 +303,81 @@ export const DEFAULT_COSMETIC_ITEMS: RosterSeed[] = [
 
 /** Seed a fresh inventory with a free starter item per category equipped. */
 export function seedInventory(): UserInventoryState {
-  const items: CosmeticItem[] = DEFAULT_COSMETIC_ITEMS.map((seed) => ({
-    ...seed,
-    unlocked: Object.keys(seed.unlockRequirements).length === 0,
-    equipped: false,
-  }));
+  const items: CosmeticItem[] = [...buildAvatarSeeds(), ...DEFAULT_COSMETIC_ITEMS].map((seed) => {
+    const { startUnlocked, ...rest } = seed;
+    return {
+      ...rest,
+      unlocked: startUnlocked ?? Object.keys(seed.unlockRequirements).length === 0,
+      equipped: false,
+    };
+  });
   const equipped = {
     avatar: items.find((i) => i.category === 'avatar' && i.unlocked)?.id ?? null,
     aura: items.find((i) => i.category === 'aura' && i.unlocked)?.id ?? null,
     accessory: null as string | null,
   } as Record<ItemCategory, string | null>;
   return { items, equipped };
+}
+
+/* ----------------------------------------------------------------------------
+   Avatar roster — loaded from `data/cosmeticsData.json`.
+   The dataset stores uppercase categories/rarities plus a human-readable
+   `unlockRequirement` string; we normalize those into the typed seeds the
+   inventory store expects (dynamic unlocks still run off `unlockRequirements`).
+--------------------------------------------------------------------------- */
+const CATEGORY_FROM_LABEL: Record<string, ItemCategory> = {
+  AVATARS: 'avatar', AVATAR: 'avatar',
+  AURAS: 'aura', AURA: 'aura',
+  ACCESSORIES: 'accessory', ACCESSORY: 'accessory',
+};
+
+const AVATAR_COLORS: Record<string, string> = {
+  common: '#aeb6c4',
+  rare: '#00e5ff',
+  epic: '#b967ff',
+  legendary: '#ffb800',
+};
+
+/** Map a dataset display string like "Level 3 Unlocked" / "2,000 Total Reps" back to structured gates. */
+export function parseUnlockRequirement(text: string | undefined): CosmeticUnlockRequirements {
+  if (!text) return {};
+  const t = text.toLowerCase();
+  const level = t.match(/level\s*(\d+)/);
+  if (level) return { level: parseInt(level[1], 10) };
+  const reps = t.match(/([\d,]+)\s*total\s*reps/);
+  if (reps) return { totalReps: parseInt(reps[1].replace(/,/g, ''), 10) };
+  const streak = t.match(/(\d+)-day\s*streak/);
+  if (streak) return { streakDays: parseInt(streak[1], 10) };
+  return {};
+}
+
+interface AvatarDataSeed {
+  id: string;
+  name: string;
+  category: string;
+  rarity: string;
+  description: string;
+  imageUrl: string;
+  unlocked: boolean;
+  unlockRequirement?: string;
+}
+
+function buildAvatarSeeds(): RosterSeed[] {
+  return (avatarRosterData as AvatarDataSeed[]).map((d) => {
+    const rarity = d.rarity.toLowerCase() as RarityTier;
+    return {
+      id: d.id,
+      name: d.name,
+      category: CATEGORY_FROM_LABEL[d.category] ?? 'avatar',
+      rarity,
+      description: d.description,
+      imageUrl: d.imageUrl,
+      unlockRequirements: parseUnlockRequirement(d.unlockRequirement),
+      unlockHint: d.unlockRequirement,
+      avatarColor: AVATAR_COLORS[rarity] ?? AVATAR_COLORS.common,
+      startUnlocked: d.unlocked,
+    };
+  });
 }
 
 export function isRosterSeed(c: CosmeticItem): boolean {

@@ -9,8 +9,9 @@ import { IconX, IconShirt, IconSparkle, IconBag, IconLock, IconCheck } from './i
 /* ============================================================================
    CosmeticsLocker — glassmorphic inventory modal.
    Category tabs (Avatars / Auras / Accessories), rarity border glows,
-   lock/unlock status, EQUIP actions and an animated canvas preview that
-   renders glowing particle fields (extra beams for legendaries).
+   lock/unlock status, EQUIP actions and an animated preview. Avatar items
+   render lightweight 2D PNG sprites (see data/cosmeticsData.json); auras and
+   accessories keep the glowing particle-field canvas.
 ============================================================================ */
 
 interface Props {
@@ -144,7 +145,6 @@ function CosmeticCard({
   onEquip: () => void;
 }) {
   const rarity = RARITY_TIERS[item.rarity];
-  const accentColor = item.aura?.color ?? item.accessory?.color ?? item.avatarColor ?? rarity.color;
   if (!item.unlocked && !showLocked) return null;
 
   return (
@@ -158,10 +158,7 @@ function CosmeticCard({
       exit={{ opacity: 0, scale: 0.96 }}
     >
       <div className="cosmetic-card-orb-ring">
-        <div
-          className="cosmetic-orb"
-          style={{ background: `radial-gradient(circle at 32% 28%, #ffffff55, ${accentColor})`, boxShadow: `0 0 22px ${rarity.glow}` }}
-        />
+        <CardArt item={item} />
         {item.rarity === 'legendary' && <div className="cosmetic-orb-sheen" />}
       </div>
 
@@ -181,9 +178,9 @@ function CosmeticCard({
             <button className="btn-equip" onClick={onEquip}>EQUIP</button>
           )
         ) : (
-          <span className="unlock-req">
+          <span className="unlock-req" title={unlockRequirementText(item.unlockRequirements)}>
             <IconLock width={12} height={12} />
-            {unlockRequirementText(item.unlockRequirements)}
+            {item.unlockHint ?? unlockRequirementText(item.unlockRequirements)}
           </span>
         )}
       </div>
@@ -192,9 +189,36 @@ function CosmeticCard({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Canvas preview — glowing particle field keyed to the hovered/equipped item  */
+/* Preview — 2D sprite for avatars, particle field for auras / accessories     */
 /* -------------------------------------------------------------------------- */
 function CosmeticPreview({ item }: { item: CosmeticItem | undefined }) {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  useEffect(() => setImgFailed(false), [item?.id]);
+
+  if (item?.imageUrl && !imgFailed) {
+    const rarity = RARITY_TIERS[item.rarity];
+    return (
+      <div className="avatar-preview" key={item.id}>
+        <img
+          className="avatar-preview-img"
+          src={item.imageUrl}
+          alt={item.name}
+          style={{ '--rarity-glow': rarity.glow } as React.CSSProperties}
+          onError={() => setImgFailed(true)}
+        />
+        <span className="avatar-preview-chip">{item.name} · {rarity.label}</span>
+      </div>
+    );
+  }
+
+  return <ParticlePreview item={item} />;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Canvas preview — glowing particle field keyed to the hovered/equipped item  */
+/* -------------------------------------------------------------------------- */
+function ParticlePreview({ item }: { item: CosmeticItem | undefined }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const color = item
     ? (item.aura?.color ?? item.accessory?.color ?? item.avatarColor ?? RARITY_TIERS[item.rarity].color)
@@ -297,6 +321,37 @@ function CosmeticPreview({ item }: { item: CosmeticItem | undefined }) {
   }, [color, legendary]);
 
   return <canvas ref={ref} className="cosmetic-preview-canvas" aria-hidden="true" />;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Card artwork — real 2D sprite when available, rarity orb otherwise          */
+/* -------------------------------------------------------------------------- */
+function CardArt({ item }: { item: CosmeticItem }) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => setFailed(false), [item.id]);
+
+  if (item.imageUrl && !failed) {
+    return (
+      <img
+        className="cosmetic-thumb-img"
+        src={item.imageUrl}
+        alt={item.name}
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  const accent = item.aura?.color ?? item.accessory?.color ?? item.avatarColor ?? RARITY_TIERS[item.rarity].color;
+  return (
+    <div
+      className="cosmetic-orb"
+      style={{
+        background: `radial-gradient(circle at 32% 28%, #ffffff55, ${accent})`,
+        boxShadow: `0 0 22px ${RARITY_TIERS[item.rarity].glow}`,
+      }}
+    />
+  );
 }
 
 function hexToRgb(hex: string): [number, number, number] {
