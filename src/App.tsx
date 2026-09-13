@@ -126,6 +126,9 @@ function App() {
   const [repToast, setRepToast] = useState<string | null>(null);
   const repToastTimer = useRef<number | null>(null);
 
+  // Accessory knob sprite load state (falls back to the glow dot on 404)
+  const [accessoryImgFailed, setAccessoryImgFailed] = useState(false);
+
   useEffect(() => {
     return () => {
       if (repToastTimer.current !== null) window.clearTimeout(repToastTimer.current);
@@ -226,6 +229,9 @@ function App() {
     () => cosmeticsList.find((c) => c.id === equippedItems.accessory) ?? null,
     [cosmeticsList, equippedItems.accessory]
   );
+
+  // Retry the knob sprite whenever the equipped accessory changes
+  useEffect(() => setAccessoryImgFailed(false), [equippedItems.accessory]);
 
   // Sonar cues: level-up chime + streak-bonus blip
   useEffect(() => {
@@ -1010,11 +1016,12 @@ function App() {
                 </div>
                 {/* Slider knob: equipped accessory image when available, else a glowing dot */}
                 <div className="xp-bar-knob" style={{ left: `${xpPct}%` }}>
-                  {eqAccessory?.imageUrl ? (
+                  {eqAccessory?.imageUrl && !accessoryImgFailed ? (
                     <img
                       className="xp-bar-knob-img"
                       src={eqAccessory.imageUrl}
                       alt={eqAccessory.name}
+                      onError={() => setAccessoryImgFailed(true)}
                       style={{
                         filter: `drop-shadow(0 0 6px ${hexToRgba(knobDotColor, 0.9)})`,
                       }}

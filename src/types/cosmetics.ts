@@ -7,6 +7,7 @@
 ============================================================================ */
 import type { PlayerProgression, StreakData } from './player';
 import avatarRosterData from '../data/cosmeticsData.json';
+import accessoryRosterData from '../data/accessoriesData.json';
 
 /* ----------------------------------------------------------------------------
    Rarity tiers
@@ -199,9 +200,10 @@ export function outranks(a: RarityTier, b: RarityTier): boolean {
    Default roster — seeded on first run (every new save starts with these).
    `unlocked`/`equipped` are lifecycle flags set by the inventory store.
 
-   Avatar items live in `data/cosmeticsData.json` (lightweight 2D PNG sprites
-   tuned for low-end mobile). Auras + accessories below stay data-driven here
-   because their `aura`/`accessory` configs feed the Three.js AuraRenderer.
+   Avatar + accessory rosters live in `data/cosmeticsData.json` and
+   `data/accessoriesData.json` (lightweight 2D PNG sprites tuned for low-end
+   mobile, each carrying a local `imageUrl`). Auras stay data-driven here
+   because their `aura` configs feed the Three.js AuraRenderer.
 --------------------------------------------------------------------------- */
 type RosterSeed = Omit<CosmeticItem, 'unlocked' | 'equipped'> & {
   /** Initial unlock state override (defaults to "no requirements → unlocked"). */
@@ -252,58 +254,15 @@ export const DEFAULT_COSMETIC_ITEMS: RosterSeed[] = [
     unlockRequirements: { longestStreak: 7 },
     aura: { color: '#ffb800', mode: 'trail', intensity: 1, particleCount: 160, ringRadius: 0.6, anchorJoints: CHEST_CENTER_JOINTS, trailJoints: [15, 16] },
   },
-
-  /* ---- ACCESSORIES ------------------------------------------------------ */
-  {
-    id: 'ac-titan-wraps',
-    name: 'Titan Wraps',
-    category: 'accessory',
-    rarity: 'common',
-    description: 'Slate combat wraps on both wrists.',
-    unlockRequirements: { totalReps: 50 },
-    accessory: { joints: [15, 16], color: '#aeb6c4', nodeSize: 0.035 },
-  },
-  {
-    id: 'ac-volt-gauntlets',
-    name: 'Volt Gauntlets',
-    category: 'accessory',
-    rarity: 'rare',
-    description: 'Spark-dripping cyan gauntlets that leave light trails.',
-    unlockRequirements: { level: 6 },
-    accessory: { joints: [15, 16], color: '#00e5ff', nodeSize: 0.042, trail: true },
-  },
-  {
-    id: 'ac-phantom-band',
-    name: 'Phantom Headband',
-    category: 'accessory',
-    rarity: 'epic',
-    description: 'A hovering violet ring over the crown.',
-    unlockRequirements: { streakDays: 5 },
-    accessory: { joints: [0], color: '#b967ff', nodeSize: 0.05, trail: true },
-  },
-  {
-    id: 'ac-comet-streaks',
-    name: 'Comet Streaks',
-    category: 'accessory',
-    rarity: 'epic',
-    description: 'Twin cyan meteor trails from both elbows.',
-    unlockRequirements: { totalReps: 1000 },
-    accessory: { joints: [13, 14], color: '#00e5ff', nodeSize: 0.04, trail: true },
-  },
-  {
-    id: 'ac-ember-crown',
-    name: 'Ember Crown',
-    category: 'accessory',
-    rarity: 'legendary',
-    description: 'Ancient amber crown. Seven-day champions only.',
-    unlockRequirements: { longestStreak: 14 },
-    accessory: { joints: [0], color: '#ffb800', nodeSize: 0.055, trail: true },
-  },
 ];
 
 /** Seed a fresh inventory with a free starter item per category equipped. */
 export function seedInventory(): UserInventoryState {
-  const items: CosmeticItem[] = [...buildAvatarSeeds(), ...DEFAULT_COSMETIC_ITEMS].map((seed) => {
+  const items: CosmeticItem[] = [
+    ...buildAvatarSeeds(),
+    ...buildAccessorySeeds(),
+    ...DEFAULT_COSMETIC_ITEMS,
+  ].map((seed) => {
     const { startUnlocked, ...rest } = seed;
     return {
       ...rest,
@@ -378,6 +337,34 @@ function buildAvatarSeeds(): RosterSeed[] {
       startUnlocked: d.unlocked,
     };
   });
+}
+
+/* ----------------------------------------------------------------------------
+   Accessory roster — loaded from `data/accessoriesData.json` (2D PNG sprites).
+   The dataset already stores normalized lowercase categories, rarities and
+   structured `unlockRequirements`/`accessory` visual configs.
+--------------------------------------------------------------------------- */
+interface AccessoryDataSeed {
+  id: string;
+  name: string;
+  rarity: string;
+  description: string;
+  imageUrl: string;
+  unlockRequirements: CosmeticUnlockRequirements;
+  accessory: AccessoryVisual;
+}
+
+function buildAccessorySeeds(): RosterSeed[] {
+  return (accessoryRosterData as AccessoryDataSeed[]).map((d) => ({
+    id: d.id,
+    name: d.name,
+    category: 'accessory' as ItemCategory,
+    rarity: d.rarity.toLowerCase() as RarityTier,
+    description: d.description,
+    imageUrl: d.imageUrl,
+    unlockRequirements: d.unlockRequirements,
+    accessory: d.accessory,
+  }));
 }
 
 export function isRosterSeed(c: CosmeticItem): boolean {

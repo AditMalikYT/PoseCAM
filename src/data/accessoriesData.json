@@ -1,0 +1,86 @@
+[
+  {
+    "id": "ac-titan-wraps",
+    "name": "Titan Wraps",
+    "category": "accessory",
+    "rarity": "common",
+    "description": "Slate combat wraps on both wrists.",
+    "imageUrl": "/assets/accessories/ac-titan-wraps.png",
+    "unlockRequirements": {
+      "totalReps": 50
+    },
+    "accessory": {
+      "joints": [15, 16],
+      "color": "#aeb6c4",
+      "nodeSize": 0.035
+    }
+  },
+  {
+    "id": "ac-volt-gauntlets",
+    "name": "Volt Gauntlets",
+    "category": "accessory",
+    "rarity": "rare",
+    "description": "Spark-dripping cyan gauntlets that leave light trails.",
+    "imageUrl": "/assets/accessories/ac-volt-gauntlets.png",
+    "unlockRequirements": {
+      "level": 6
+    },
+    "accessory": {
+      "joints": [15, 16],
+      "color": "#00e5ff",
+      "nodeSize": 0.042,
+      "trail": true
+    }
+  },
+  {
+    "id": "ac-phantom-band",
+    "name": "Phantom Headband",
+    "category": "accessory",
+    "rarity": "epic",
+    "description": "A hovering violet ring over the crown.",
+    "imageUrl": "/assets/accessories/ac-phantom-band.png",
+    "unlockRequirements": {
+      "streakDays": 5
+    },
+    "accessory": {
+      "joints": [0],
+      "color": "#b967ff",
+      "nodeSize": 0.05,
+      "trail": true
+    }
+  },
+  {
+    "id": "ac-comet-streaks",
+    "name": "Comet Streaks",
+    "category": "accessory",
+    "rarity": "epic",
+    "description": "Twin cyan meteor trails from both elbows.",
+    "imageUrl": "/assets/accessories/ac-comet-streaks.png",
+    "unlockRequirements": {
+      "totalReps": 1000
+    },
+    "accessory": {
+      "joints": [13, 14],
+      "color": "#00e5ff",
+      "nodeSize": 0.04,
+      "trail": true
+    }
+  },
+  {
+    "id": "ac-ember-crown",
+    "name": "Ember Crown",
+    "category": "accessory",
+    "rarity": "legendary",
+    "description": "Ancient amber crown. Seven-day champions only.",
+    "imageUrl": "/assets/accessories/ac-ember-crown.png",
+    "unlockRequirements": {
+      "longestStreak": 14
+    },
+    "accessory": {
+      "joints": [0],
+      "color": "#ffb800",
+      "nodeSize": 0.055,
+      "trail": true
+    }
+  }
+]
