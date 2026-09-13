@@ -60,6 +60,7 @@ import {
 import type { PoseLandmark, PoseLandmarkIndex } from './types/pose';
 import type { ExerciseType } from './types/exercise';
 import type { PoseCorrectorConfig, PoseAlignment } from './types/poseCorrector';
+import { enableFullscreen } from './utils/fullscreen';
 import * as THREE from 'three';
 
 // MediaPipe skeleton joint connections
@@ -132,6 +133,25 @@ function App() {
   useEffect(() => {
     return () => {
       if (repToastTimer.current !== null) window.clearTimeout(repToastTimer.current);
+    };
+  }, []);
+
+  // Request fullscreen on the first user tap/touch (browsers require a gesture
+  // before granting fullscreen access). Fires once per page load, then detaches.
+  useEffect(() => {
+    const trigger = () => {
+      enableFullscreen();
+      document.removeEventListener('pointerdown', trigger);
+      document.removeEventListener('touchstart', trigger);
+      document.removeEventListener('keydown', trigger);
+    };
+    document.addEventListener('pointerdown', trigger);
+    document.addEventListener('touchstart', trigger);
+    document.addEventListener('keydown', trigger);
+    return () => {
+      document.removeEventListener('pointerdown', trigger);
+      document.removeEventListener('touchstart', trigger);
+      document.removeEventListener('keydown', trigger);
     };
   }, []);
 
@@ -973,6 +993,18 @@ function App() {
 
   return (
     <div className="app">
+      {/* Portrait-only lock guard: displayed only in landscape on phones */}
+      <div className="portrait-lock-overlay" role="dialog" aria-modal="true" aria-label="Rotate device to portrait">
+        <div className="portrait-lock-inner">
+          <div className="portrait-lock-icon" />
+          <div className="portrait-lock-title">Rotate your device</div>
+          <p className="portrait-lock-desc">
+            This app is designed for portrait mode.
+            Please rotate your phone back to portrait to continue.
+          </p>
+        </div>
+      </div>
+
       {/* Camera Feed & 2D Skeleton Canvas */}
       <div className="video-container">
         <video ref={videoRef} playsInline muted className="video-feed" />

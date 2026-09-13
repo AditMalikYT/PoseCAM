@@ -2267,3 +2267,76 @@ body {
   transform: rotate(-14deg);
   pointer-events: none;
 }
+
+/* =====================================================================
+   PORTRAIT LOCK GUARD
+   High-contrast obstacle overlay shown only when a phone is rotated to
+   landscape. Hidden by default; flipped on by the media query below.
+===================================================================== */
+.portrait-lock-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: radial-gradient(120% 100% at 50% 0%, #0b0d14 0%, #000 100%);
+  color: #fff;
+  font-family: var(--font-body);
+  text-align: center;
+}
+.portrait-lock-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+  max-width: 340px;
+}
+.portrait-lock-icon {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border-radius: 18px;
+  border: 3px solid var(--energy-cyan);
+  box-shadow: inset 0 0 0 6px #000, 0 0 30px rgba(0, 240, 255, 0.45);
+  animation: portrait-shake 1.4s ease-in-out infinite;
+}
+.portrait-lock-icon::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 7px;
+  height: 30px;
+  border-radius: 4px;
+  background: var(--energy-cyan);
+  transform: translate(-50%, -50%);
+}
+@keyframes portrait-shake {
+  0%, 100% { transform: rotate(90deg) translateY(0); }
+  50% { transform: rotate(90deg) translateY(-7px); }
+}
+.portrait-lock-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--energy-cyan);
+  text-shadow: 0 0 22px rgba(0, 240, 255, 0.55);
+}
+.portrait-lock-desc {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+@media screen and (orientation: landscape) and (max-width: 932px) {
+  .portrait-lock-overlay {
+    display: flex !important;
+  }
+}
