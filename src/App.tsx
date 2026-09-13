@@ -72,6 +72,15 @@ const POSE_CONNECTIONS: [number, number][] = [
 // Weekly streak multiplier formatting (1 -> "1", 1.15 -> "1.15", 2 -> "2")
 const fmtMult = (mult: number) => mult.toFixed(2).replace(/\.?0+$/, '');
 
+// Convert #rrggbb / #rgb hex into an rgba() string (for aura-driven glows).
+const hexToRgba = (hex: string, alpha: number): string => {
+  const clean = hex.replace('#', '');
+  const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
+  const int = parseInt(full.slice(0, 6), 16);
+  if (Number.isNaN(int)) return hex;
+  return `rgba(${(int >> 16) & 255}, ${(int >> 8) & 255}, ${int & 255}, ${alpha})`;
+};
+
 // Default pose corrector configuration
 const POSE_CORRECTOR_CONFIG: PoseCorrectorConfig = {
   enabled: false,
@@ -212,6 +221,10 @@ function App() {
   const eqAura = useMemo(
     () => cosmeticsList.find((c) => c.id === equippedItems.aura) ?? null,
     [cosmeticsList, equippedItems.aura]
+  );
+  const eqAccessory = useMemo(
+    () => cosmeticsList.find((c) => c.id === equippedItems.accessory) ?? null,
+    [cosmeticsList, equippedItems.accessory]
   );
 
   // Sonar cues: level-up chime + streak-bonus blip
@@ -935,6 +948,23 @@ function App() {
     }
   };
 
+  // Equipped aura drives the card frame accent: border, corner brackets,
+  // avatar ring + glow shadow (defaults to the base cyber-cyan palette).
+  const auraColor = eqAura?.aura?.color ?? '#00f0ff';
+  const auraGlow = hexToRgba(auraColor, 0.42);
+  const auraGlowSoft = hexToRgba(auraColor, 0.14);
+  const cardStyle = {
+    '--avatar-accent': eqAvatar?.avatarColor ?? '#00f0ff',
+    '--aura-accent': auraColor,
+    '--aura-glow': auraGlow,
+    borderColor: auraColor,
+    boxShadow: `var(--glass-shadow), var(--glass-inset), 0 0 34px ${auraGlow}, 0 0 90px ${auraGlowSoft}`,
+  } as React.CSSProperties;
+
+  // XP fill percentage — drives both the fill width and the bar knob position.
+  const xpPct = Math.min(100, (player.currentXp / player.xpToNextLevel) * 100);
+  const knobDotColor = eqAccessory?.accessory?.color ?? '#00f0ff';
+
   return (
     <div className="app">
       {/* Camera Feed & 2D Skeleton Canvas */}
@@ -955,7 +985,7 @@ function App() {
           {/* Character Card (equipped avatar accent + 2D sprite via --avatar-accent) */}
           <div
             className="character-card"
-            style={{ '--avatar-accent': eqAvatar?.avatarColor ?? '#00f0ff' } as React.CSSProperties}
+            style={cardStyle}
           >
             {eqAvatar?.imageUrl && (
               <div className="character-card-avatar">
@@ -966,16 +996,39 @@ function App() {
               <span className="level-number">Lv.{player.currentLevel}</span>
             </div>
             <div className="xp-bar-container">
-              <div className="xp-bar-track">
-                <div
-                  className="xp-bar-fill"
-                  style={{
-                    width: `${Math.min(100, (player.currentXp / player.xpToNextLevel) * 100)}%`,
-                    background: eqAura?.aura
-                      ? `linear-gradient(90deg, var(--energy-cyan), ${eqAura.aura.color})`
-                      : undefined,
-                  }}
-                />
+              <div className="xp-track-wrap">
+                <div className="xp-bar-track">
+                  <div
+                    className="xp-bar-fill"
+                    style={{
+                      width: `${xpPct}%`,
+                      background: eqAura?.aura
+                        ? `linear-gradient(90deg, var(--energy-cyan), ${eqAura.aura.color})`
+                        : undefined,
+                    }}
+                  />
+                </div>
+                {/* Slider knob: equipped accessory image when available, else a glowing dot */}
+                <div className="xp-bar-knob" style={{ left: `${xpPct}%` }}>
+                  {eqAccessory?.imageUrl ? (
+                    <img
+                      className="xp-bar-knob-img"
+                      src={eqAccessory.imageUrl}
+                      alt={eqAccessory.name}
+                      style={{
+                        filter: `drop-shadow(0 0 6px ${hexToRgba(knobDotColor, 0.9)})`,
+                      }}
+                    />
+                  ) : (
+                    <span
+                      className="xp-bar-knob-dot"
+                      style={{
+                        background: knobDotColor,
+                        boxShadow: `0 0 9px ${hexToRgba(knobDotColor, 0.9)}, 0 0 22px ${hexToRgba(knobDotColor, 0.45)}`,
+                      }}
+                    />
+                  )}
+                </div>
               </div>
               <div className="xp-bar-label">
                 <span>XP</span>
