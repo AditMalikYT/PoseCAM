@@ -62,17 +62,35 @@ let initialized = false;
 
 export async function initPoseLandmarker(modelPath?: string): Promise<boolean> {
   if (initialized) return true;
+  const targetModel = modelPath || 'https://cdn.jsdelivr.net/gh/AditMalikYT/PoseCAM@main/asset/pose_landmarker_lite.task';
   try {
     const { FilesetResolver, PoseLandmarker } = await import('@mediapipe/tasks-vision');
     const resolver = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm');
-    landmarker = await PoseLandmarker.createFromOptions(resolver, {
-      baseOptions: { modelAssetPath: modelPath || 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task', delegate: MODEL_CONFIG.delegate },
-      runningMode: MODEL_CONFIG.runningMode, numPoses: 1,
-      minPoseDetectionConfidence: MODEL_CONFIG.minPoseDetectionConfidence,
-      minPosePresenceConfidence: MODEL_CONFIG.minPosePresenceConfidence,
-      minTrackingConfidence: MODEL_CONFIG.minTrackingConfidence,
-      outputSegmentationMasks: MODEL_CONFIG.outputSegmentationMasks,
-    });
+
+    // Try GPU delegate first, fallback to CPU
+    let delegate: 'GPU' | 'CPU' = MODEL_CONFIG.delegate;
+    try {
+      landmarker = await PoseLandmarker.createFromOptions(resolver, {
+        baseOptions: { modelAssetPath: targetModel, delegate: 'GPU' },
+        runningMode: MODEL_CONFIG.runningMode, numPoses: 1,
+        minPoseDetectionConfidence: MODEL_CONFIG.minPoseDetectionConfidence,
+        minPosePresenceConfidence: MODEL_CONFIG.minPosePresenceConfidence,
+        minTrackingConfidence: MODEL_CONFIG.minTrackingConfidence,
+        outputSegmentationMasks: MODEL_CONFIG.outputSegmentationMasks,
+      });
+    } catch (gpuErr) {
+      console.warn('GPU delegate failed, falling back to CPU:', gpuErr);
+      delegate = 'CPU';
+      landmarker = await PoseLandmarker.createFromOptions(resolver, {
+        baseOptions: { modelAssetPath: targetModel, delegate: 'CPU' },
+        runningMode: MODEL_CONFIG.runningMode, numPoses: 1,
+        minPoseDetectionConfidence: MODEL_CONFIG.minPoseDetectionConfidence,
+        minPosePresenceConfidence: MODEL_CONFIG.minPosePresenceConfidence,
+        minTrackingConfidence: MODEL_CONFIG.minTrackingConfidence,
+        outputSegmentationMasks: MODEL_CONFIG.outputSegmentationMasks,
+      });
+    }
+
     smoother = new LandmarkSmoother(0.7);
     validator = new PoseValidator(3, 500);
     initialized = true;
