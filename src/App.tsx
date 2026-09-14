@@ -374,18 +374,26 @@ function App() {
     };
   }, []);
 
-  // Pose detection loop - using new async API
+  // Pose detection loop - using optimized throttled frame processing
   useEffect(() => {
     if (!isInitialized || !isReady()) return;
 
     let animationFrameId: number;
     let lastTimestamp = 0;
+    let lastPoseDetectTime = 0;
+    let isDetecting = false;
+    let lastVideoTime = -1;
+    let lastTelemetryUpdate = 0;
 
     const processFrame = async () => {
-      if (!videoRef.current || !canvasRef.current) {
-        animationFrameId = requestAnimationFrame(processFrame);
+      animationFrameId = requestAnimationFrame(processFrame);
+
+      if (!videoRef.current || !canvasRef.current || isDetecting) {
         return;
       }
+
+      const video = videoRef.current;
+      if (video.paused || video.ended || video.readyState < 2) return;
 
       const now = performance.now();
       const frameTimeMs = now - lastTimestamp;
@@ -399,8 +407,21 @@ function App() {
         fpsLastTime.current = now;
       }
 
-      // Detect pose using new API
-      const pose = await detectPose(videoRef.current, now);
+      // Throttle pose detection to target ~30 FPS max (33ms) and only process when video frame has advanced
+      if (now - lastPoseDetectTime < 30 || video.currentTime === lastVideoTime) {
+        return;
+      }
+
+      lastVideoTime = video.currentTime;
+      lastPoseDetectTime = now;
+      isDetecting = true;
+
+      let pose = null;
+      try {
+        pose = await detectPose(video, now);
+      } finally {
+        isDetecting = false;
+      }
 
       if (!pose || !pose.landmarks || pose.landmarks.length === 0) {
         // Tracking lost / person out of frame. Keep the render loop alive,
@@ -414,11 +435,12 @@ function App() {
           TRACKING_LOSS_RESET_MS
         );
         stateMachineRef.current = resetState;
-        if (reset) setCurrentPhase(resetState.phase);
+        if (reset) setCurrentPhase((prev) => (prev !== resetState.phase ? resetState.phase : prev));
 
         drawSkeletonOverlay([], isDebugModeRef.current, null, null, null);
 
-        if (isDebugModeRef.current) {
+        if (isDebugModeRef.current && now - lastTelemetryUpdate > 250) {
+          lastTelemetryUpdate = now;
           setTelemetry((prev) => ({
             ...prev,
             fps: currentFps.current,
@@ -435,8 +457,6 @@ function App() {
             phase: resetState.phase,
           }));
         }
-
-        animationFrameId = requestAnimationFrame(processFrame);
         return;
       }
 
@@ -573,8 +593,9 @@ function App() {
         }
       }
 
-      // Update Debug Telemetry state (NaN-safe: angles are finite or null)
-      if (isDebugModeRef.current) {
+      // Update Debug Telemetry state throttled to ~4Hz (250ms) to avoid high main-thread React re-render churn
+      if (isDebugModeRef.current && now - lastTelemetryUpdate > 250) {
+        lastTelemetryUpdate = now;
         setTelemetry({
           fps: currentFps.current,
           frameTimeMs: Math.round(frameTimeMs),
@@ -604,7 +625,7 @@ function App() {
         );
 
         stateMachineRef.current = nextState;
-        setCurrentPhase(nextState.phase);
+        setCurrentPhase((prev) => (prev !== nextState.phase ? nextState.phase : prev));
 
         // Form issue feedback
         if (result.formIssues && result.formIssues.length > 0) {
