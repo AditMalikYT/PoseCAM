@@ -5,7 +5,7 @@
     "category": "accessory",
     "rarity": "common",
     "description": "Slate combat wraps on both wrists.",
-    "imageUrl": "/assets/accessories/ac-titan-wraps.png",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/AditMalikYT/PoseCAM@main/public/assets/accessories/ac-titan-wraps.png",
     "unlockRequirements": {
       "totalReps": 50
     },
@@ -21,7 +21,7 @@
     "category": "accessory",
     "rarity": "rare",
     "description": "Spark-dripping cyan gauntlets that leave light trails.",
-    "imageUrl": "/assets/accessories/ac-volt-gauntlets.png",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/AditMalikYT/PoseCAM@main/public/assets/accessories/ac-volt-gauntlets.png",
     "unlockRequirements": {
       "level": 6
     },
@@ -38,7 +38,7 @@
     "category": "accessory",
     "rarity": "epic",
     "description": "A hovering violet ring over the crown.",
-    "imageUrl": "/assets/accessories/ac-phantom-band.png",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/AditMalikYT/PoseCAM@main/public/assets/accessories/ac-phantom-band.png",
     "unlockRequirements": {
       "streakDays": 5
     },
@@ -55,7 +55,7 @@
     "category": "accessory",
     "rarity": "epic",
     "description": "Twin cyan meteor trails from both elbows.",
-    "imageUrl": "/assets/accessories/ac-comet-streaks.png",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/AditMalikYT/PoseCAM@main/public/assets/accessories/ac-comet-streaks.png",
     "unlockRequirements": {
       "totalReps": 1000
     },
@@ -72,7 +72,7 @@
     "category": "accessory",
     "rarity": "legendary",
     "description": "Ancient amber crown. Seven-day champions only.",
-    "imageUrl": "/assets/accessories/ac-ember-crown.png",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/AditMalikYT/PoseCAM@main/public/assets/accessories/ac-ember-crown.png",
     "unlockRequirements": {
       "longestStreak": 14
     },
