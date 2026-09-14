@@ -6,10 +6,16 @@
     <!-- ======================= PWA Manifest ======================= -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#00F0FF" />
-    <meta name="description" content="AR Calisthenics Gamification App - Turn your workouts into an RPG adventure" />
+    <meta name="description" content="Turn your workouts into an RPG adventure with real-time AI pose tracking, rep counter, XP progression, and boss battles." />
+
+    <!-- Open Graph / Social Sharing -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="ArGym - AR Calisthenics RPG" />
+    <meta property="og:description" content="Turn your workouts into an RPG adventure with real-time AI pose tracking, rep counter, XP progression, and boss battles." />
+    <meta property="og:image" content="/icons/icon-512.png" />
 
     <!-- ======================= Mobile viewport (non-scalable, full-bleed) ======================= -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="application-name" content="AR Calisthenics" />
     <meta name="format-detection" content="telephone=no" />
@@ -30,7 +36,15 @@
     <link
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Outfit:wght@400;600;800;900&display=swap"
       rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Outfit:wght@400;600;800;900&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
     <title>ArGym - AR Calisthenics RPG</title>
   </head>
   <body>

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://posecam.vercel.app/sitemap.xml
