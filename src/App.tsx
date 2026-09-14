@@ -1003,6 +1003,9 @@ function App() {
       {/* 3D / AR Three.js Canvas Container */}
       <div id="ar-container" />
 
+      {/* Hidden h1 for accessibility and SEO semantic hierarchy */}
+      <h1 className="sr-only">ArGym - AR Calisthenics RPG Workout Assistant</h1>
+
       {/* Glassmorphic Cyber-HUD */}
       <div className="hud">
         <div className="hud-top">
