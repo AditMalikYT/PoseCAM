@@ -286,13 +286,15 @@ function App() {
 
     const renderLoop = (time: number) => {
       if (!setup || disposed) return;
+      animationFrameId = requestAnimationFrame(renderLoop);
+
+      if (document.hidden) return;
+
       const delta = Math.min((time - prevTime) / 1000, 0.1);
       prevTime = time;
 
       setup.updateFX(delta);
       setup.renderer.render(setup.scene, setup.camera);
-
-      animationFrameId = requestAnimationFrame(renderLoop);
     };
 
     // Async setup for WebXR feature detection
@@ -388,7 +390,7 @@ function App() {
     const processFrame = async () => {
       animationFrameId = requestAnimationFrame(processFrame);
 
-      if (!videoRef.current || !canvasRef.current || isDetecting) {
+      if (document.hidden || !videoRef.current || !canvasRef.current || isDetecting) {
         return;
       }
 
@@ -407,8 +409,12 @@ function App() {
         fpsLastTime.current = now;
       }
 
-      // Throttle pose detection to target ~30 FPS max (33ms) and only process when video frame has advanced
-      if (now - lastPoseDetectTime < 30 || video.currentTime === lastVideoTime) {
+      // Dynamic frame rate target:
+      // When exercise is active: ~24-30 FPS (33ms interval)
+      // When idle / pre-workout: ~12-15 FPS (66ms interval) to dramatically lower main-thread CPU execution time
+      const targetInterval = isExerciseActive ? 33 : 66;
+
+      if (now - lastPoseDetectTime < targetInterval || video.currentTime === lastVideoTime) {
         return;
       }
 
